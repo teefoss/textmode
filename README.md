@@ -138,28 +138,35 @@ Finally, if you need a full MS-DOS-like program with a multiple page console and
 ```c
 #include <textmode.h>
 #include <SDL2/SDL.h>
+#include <stdbool.h>
 
-#define CONSOLE_ROWS	25
-#define CONSOLE_COLS	80
-#define BORDER_SIZE		4
+#define ROWS            25
+#define COLS            80
+#define BORDER_SIZE     4
 
 int main()
 {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
-	DOS_InitScreen("My App", CONSOLE_COLS, CONSOLE_ROWS, DOS_MODE80, BORDER_SIZE);
+    DOS_InitScreen("My App", COLS, ROWS, DOS_MODE80, BORDER_SIZE);
+
+    DOS_ClearScreen();
+    DOS_GotoXY(5, 5);
+    DOS_SetForeground(DOS_YELLOW);
+    DOS_PrintString("Hey, Earth!");
     
     bool run = true;
     while ( run ) {
-        DOS_ClearScreen();
-		DOS_GotoXY(5, 5);
-		DOS_SetForeground(DOS_YELLOW);
-		DOS_PrintString("Hey, Earth");
+        SDL_Event event;
+        while ( SDL_PollEvent(&event) )
+            if ( event.type == SDL_QUIT )
+                run = false;
 
-		DOS_RenderScreen();
+        DOS_RenderScreen();
     }
     
-	SDL_Quit();
+    SDL_Quit();
     return 0;
 }
+
 ```
 
