@@ -1,4 +1,4 @@
-#TextMode
+# TextMode
 
 Used in conjuction with SDL 2, TextMode is a library for creating programs that use the IBM code page 437 character set and CGA color. This library would be useful for:
 
@@ -108,7 +108,7 @@ DOS_Text * text = DOS_MakeText(renderer, DOS_MODE80, dos_palette, DOS_NUMCOLORS)
 
 
 
-##Console
+## Console
 
 If you need a console that can be rendered anywhere within a window, use a `DOS_Console`.
 
