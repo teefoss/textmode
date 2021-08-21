@@ -125,7 +125,7 @@ void DOS_ClearBackground(DOS_Console * console)
     for ( int y = 0; y < console->height; y++ ) {
         for ( int x = 0; x < console->width; x++ ) {
             DOS_CharInfo * cell = GetCell(console, x, y);
-            cell->bg_color = console->bg_color;
+            cell->attributes.bg_color = console->bg_color;
         }
     }
 }
@@ -147,9 +147,9 @@ void DOS_CPrintChar(DOS_Console * con, uint8_t ch)
 {
     DOS_CharInfo * cell = GetCell(con, con->cursor_x, con->cursor_y);
     cell->character = ch;
-    cell->fg_color = con->fg_color;
-    cell->bg_color = con->bg_color;
-    cell->blink = con->blink;
+    cell->attributes.fg_color = con->fg_color;
+    cell->attributes.bg_color = con->bg_color;
+    cell->attributes.blink = con->blink;
     
     AdvanceCursor(con, 1);
 }
@@ -243,13 +243,9 @@ void DOS_RenderConsole(DOS_Console * console, int x, int y)
             cell_rect.x = x1 * DOS_CHAR_WIDTH + x;
             cell_rect.y = y1 * console->mode + y;
             
-            if ( !cell->blink || (cell->blink && SDL_GetTicks() % 600 < 300) ) {
-                DOS_TPrintChar(console->text,
-                               cell_rect.x,
-                               cell_rect.y,
-                               cell->fg_color,
-                               cell->bg_color,
-                               cell->character);
+            if (!cell->attributes.blink
+                || (cell->attributes.blink && SDL_GetTicks() % 600 < 300) ) {
+                DOS_TRenderChar(console->text, cell_rect.x, cell_rect.y, cell);
             }
         }
     }

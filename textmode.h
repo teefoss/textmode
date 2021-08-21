@@ -18,6 +18,20 @@ typedef enum
     DOS_MODE80 = 16, // normal characters (8 x 16, default)
 } DOS_Mode;
 
+typedef struct
+{
+    unsigned char fg_color      : 4; // foreground color
+    unsigned char bg_color      : 4; // background color
+    unsigned char transparent   : 1; // background is transparent
+    unsigned char blink         : 1; // whether text blinks
+} DOS_Attributes;
+
+typedef struct
+{
+    unsigned char   character;
+    DOS_Attributes  attributes;
+} DOS_CharInfo;
+
 // -----------------------------------------------------------------------------
 // CGA Color
 
@@ -63,6 +77,8 @@ int DOS_StringWidth(const char * format, ...);
 // structure describing a character 'sprite sheet', made from a color palette
 typedef struct DOS_Text DOS_Text;
 
+DOS_Attributes DOS_DefaultAttributes(void);
+
 DOS_Text * DOS_MakeText(SDL_Renderer * renderer, DOS_Mode mode,
                         const SDL_Color * palette, int num_colors );
 
@@ -73,8 +89,8 @@ void DOS_SetTextScale(DOS_Text * text, int scale);
 SDL_Rect DOS_CharSize(DOS_Text * text);
 
 // render charaters/strings using DOS_Text
-void DOS_TPrintChar(DOS_Text * text, int x, int y, DOS_CharInfo * info);
-void DOS_TPrintString(DOS_Text * text, int x, int y, DOS_CharInfo * attr,
+void DOS_TRenderChar(DOS_Text * text, int x, int y, DOS_CharInfo * info);
+void DOS_TRenderString(DOS_Text * text, int x, int y, DOS_Attributes * attr,
                       const char * format, ... );
 
 void DOS_DestroyText(DOS_Text * text);
@@ -90,16 +106,6 @@ typedef enum
     DOS_CURSOR_NORMAL,  // bottom 20% cell
     DOS_CURSOR_FULL     // cursor fills entire cell
 } DOS_CursorType;
-
-// structure describing one cell within the a console
-typedef struct
-{
-    unsigned char character     : 8; // ASCII value
-    unsigned char fg_color      : 4; // foreground color
-    unsigned char bg_color      : 4; // background color
-    unsigned char transparent   : 1; // background is transparent
-    unsigned char blink         : 1; // whether text blinks
-} DOS_CharInfo;
 
 typedef struct DOS_Console DOS_Console;
 

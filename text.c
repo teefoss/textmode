@@ -22,6 +22,17 @@ struct DOS_Text
 static const uint8_t * DOS_Data8(uint8_t ch);
 static const uint8_t * DOS_Data16(uint8_t ch);
 
+DOS_Attributes DOS_DefaultAttributes()
+{
+    DOS_Attributes attr;
+    attr.fg_color = DOS_WHITE;
+    attr.bg_color = DOS_BLACK;
+    attr.transparent = 0;
+    attr.blink = 0;
+    
+    return attr;
+}
+
 void
 DOS_RenderChar
 (   SDL_Renderer * renderer,
@@ -213,9 +224,9 @@ SDL_Rect DOS_CharSize(DOS_Text * text)
     return size;
 }
 
-void DOS_TPrintChar(DOS_Text * text, int x, int y, DOS_CharInfo * info)
+void DOS_TRenderChar(DOS_Text * text, int x, int y, DOS_CharInfo * info)
 {
-    SDL_Rect char_src = CharRect(text, info->character, fg);
+    SDL_Rect char_src = CharRect(text, info->character, info->attributes.fg_color);
     
     SDL_Rect dst;
     dst.x = x;
@@ -223,10 +234,10 @@ void DOS_TPrintChar(DOS_Text * text, int x, int y, DOS_CharInfo * info)
     dst.w = char_src.w * text->draw_scale;
     dst.h = char_src.h * text->draw_scale;
 
-    if ( !info->transparent ) {
+    if ( !info->attributes.transparent ) {
         SDL_Rect bg_src;
         bg_src.x = DOS_NUM_CHARS * DOS_CHAR_WIDTH;
-        bg_src.y = bg * text->mode;
+        bg_src.y = info->attributes.bg_color * text->mode;
         bg_src.w = char_src.w;
         bg_src.h = char_src.h;
         SDL_RenderCopy(text->renderer, text->texture, &bg_src, &dst);
@@ -235,12 +246,13 @@ void DOS_TPrintChar(DOS_Text * text, int x, int y, DOS_CharInfo * info)
     SDL_RenderCopy(text->renderer, text->texture, &char_src, &dst);
 }
 
-void DOS_TPrintString(DOS_Text * text, int x, int y, DOS_CharInfo * attr,
+void DOS_TRenderString(DOS_Text * text, int x, int y, DOS_Attributes * attr,
                       const char * format, ...)
 {
     int     len, x1;
     char *  buffer;
     char *  ch;
+    DOS_CharInfo info;
     
     va_list args[2];
     va_start(args[0], format);
@@ -253,11 +265,12 @@ void DOS_TPrintString(DOS_Text * text, int x, int y, DOS_CharInfo * attr,
     va_end(args[0]);
     va_end(args[1]);
     
+    info.attributes = *attr;
     ch = buffer;
     x1 = x;
     while ( *ch ) {
-        attr->ch = *ch;
-        DOS_TPrintChar(text, x1, y, attr);
+        info.character = *ch;
+        DOS_TRenderChar(text, x1, y, &info);
         ch++;
         x1 += DOS_CHAR_WIDTH;
     }
