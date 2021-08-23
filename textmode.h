@@ -20,15 +20,15 @@ typedef enum
 
 typedef struct
 {
-    unsigned char fg_color      : 4; // foreground color
-    unsigned char bg_color      : 4; // background color
-    unsigned char transparent   : 1; // background is transparent
-    unsigned char blink         : 1; // whether text blinks
+    uint8_t fg_color      : 4; // foreground color
+    uint8_t bg_color      : 4; // background color
+    uint8_t transparent   : 1; // background is transparent
+    uint8_t blink         : 1; // whether text blinks
 } DOS_Attributes;
 
 typedef struct
 {
-    unsigned char   character;
+    uint8_t character;
     DOS_Attributes  attributes;
 } DOS_CharInfo;
 
@@ -68,6 +68,8 @@ void DOS_RenderChar(SDL_Renderer * renderer, int x, int y, DOS_Mode mode,
                     uint8_t character);
 int DOS_RenderString(SDL_Renderer * renderer, int x, int y, DOS_Mode mode,
                      const char * format, ... );
+
+// the width in pixels of a given format string
 int DOS_StringWidth(const char * format, ...);
 
 
@@ -79,8 +81,8 @@ typedef struct DOS_Text DOS_Text;
 
 DOS_Attributes DOS_DefaultAttributes(void);
 
-DOS_Text * DOS_MakeText(SDL_Renderer * renderer, DOS_Mode mode,
-                        const SDL_Color * palette, int num_colors );
+DOS_Text * DOS_CreateText(SDL_Renderer * renderer, DOS_Mode mode,
+                          const SDL_Color * palette, int num_colors );
 
 // set the draw scale of given text sheet
 void DOS_SetTextScale(DOS_Text * text, int scale);
@@ -110,8 +112,8 @@ typedef enum
 typedef struct DOS_Console DOS_Console;
 
 // w, h: the number of rows and columns
-DOS_Console * DOS_NewConsole(SDL_Renderer * renderer, int w, int h,
-                             DOS_Mode text_style );
+DOS_Console * DOS_CreateConsole(SDL_Renderer * renderer, int w, int h,
+                                DOS_Mode text_style );
 void DOS_FreeConsole(DOS_Console * console);
 
 // Clear the entire console. The foreground color is set to DOS_WHITE, the

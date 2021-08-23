@@ -166,12 +166,8 @@ static void MakeTextTexture(DOS_Text * text, const SDL_Color * palette)
     SDL_SetRenderDrawColor(text->renderer, r, g, b, a);
 }
 
-DOS_Text *
-DOS_MakeText
-(   SDL_Renderer * renderer,
-    DOS_Mode mode,
-    const SDL_Color * palette,
-    int num_colors )
+DOS_Text * DOS_CreateText(SDL_Renderer * renderer, DOS_Mode mode,
+                          const SDL_Color * palette, int num_colors )
 {
     DOS_Text * text = malloc(sizeof(*text));
     if ( text == NULL ) {

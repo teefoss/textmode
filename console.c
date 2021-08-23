@@ -1,5 +1,4 @@
 #include "textmode.h"
-#include "internal.h"
 
 struct DOS_Console
 {
@@ -16,6 +15,8 @@ struct DOS_Console
     DOS_CharInfo *  buffer;
     DOS_CursorType  cursor_type;
 };
+
+SDL_Renderer * DOS_GetTextRenderer(DOS_Text * text);
 
 // -----------------------------------------------------------------------------
 
@@ -49,7 +50,7 @@ static bool ValidCoord(DOS_Console * c, int x, int y)
 
 static DOS_Console * NewConsoleError(DOS_Console * c, const char * message)
 {
-    fprintf(stderr, "DOS_NewConsole: %s\n", message);
+    fprintf(stderr, "DOS_CreateConsole: %s\n", message);
     DOS_FreeConsole(c);
     
     return NULL;
@@ -58,7 +59,7 @@ static DOS_Console * NewConsoleError(DOS_Console * c, const char * message)
 // -----------------------------------------------------------------------------
 
 DOS_Console *
-DOS_NewConsole
+DOS_CreateConsole
 (   SDL_Renderer * renderer,
     int w,
     int h,
@@ -84,7 +85,7 @@ DOS_NewConsole
         return NewConsoleError(console, "could not allocate buffer");
     }
     
-    console->text = DOS_MakeText(renderer, text_style, dos_palette, 16);
+    console->text = DOS_CreateText(renderer, text_style, dos_palette, 16);
     
     if ( console->text == NULL ) {
         return NewConsoleError(console, "could not create console text");

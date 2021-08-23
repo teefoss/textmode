@@ -115,10 +115,10 @@ DOS_InitScreen
     }
 
     for ( int i = 0; i < DOS_NUM_PAGES; i++ ) {
-        screen.pages[i] = DOS_NewConsole(screen.renderer,
-                                         console_w,
-                                         console_h,
-                                         mode);
+        screen.pages[i] = DOS_CreateConsole(screen.renderer,
+                                            console_w,
+                                            console_h,
+                                            mode);
         
         if ( screen.pages[i] == NULL ) {
             return NewScreenError("could not create console");
