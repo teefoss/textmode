@@ -93,7 +93,7 @@ SDL_Color my_palette[3] = {
 };
 SDL_Renderer * renderer;
 ...
-DOS_Text * text = DOS_MakeText(renderer, DOS_MODE40, my_palette, 3);
+DOS_Text * text = DOS_CreateText(renderer, DOS_MODE40, my_palette, 3);
 DOS_CharInfo attr = DOS_DefaultAttributes(); // white text on black background
 DOS_TRenderString(text, 0, 0, &attr, "Hello, galaxy");
 ...
@@ -103,7 +103,7 @@ DOS_DestroyText(text);
 To create text with the default CGA palette, use the global variable `dos_palette`, which has 16 colors (`DOS_NUMCOLORS`).
 
 ```c
-DOS_Text * text = DOS_MakeText(renderer, DOS_MODE80, dos_palette, DOS_NUMCOLORS);
+DOS_Text * text = DOS_CreateText(renderer, DOS_MODE80, dos_palette, DOS_NUMCOLORS);
 ```
 
 
@@ -117,7 +117,7 @@ SDL_Renderer * renderer;
 ...
 #define ROWS 10
 #define COLS 15
-DOS_Console * console = DOS_NewConsole(renderer, COLS, ROWS, DOS_MODE80);
+DOS_Console * console = DOS_CreateConsole(renderer, COLS, ROWS, DOS_MODE80);
 DOS_CSetCursorType(console, DOS_CURSOR_FULL);
 ...
 DOS_ClearConsole(console); // clear to default attributes, cursor at 0, 0
@@ -127,6 +127,8 @@ DOS_CPrintString(console, "console size: %d x %d", COLS, ROWS);
 ...
 DOS_RenderConsole(console, 0, 0);
 SDL_RenderPresent(renderer);
+...
+DOS_DestroyConsole(console);
 ```
 
 
@@ -156,12 +158,14 @@ int main()
     
     bool run = true;
     while ( run ) {
+        DOS_LimitFrameRate(30);
+        
         SDL_Event event;
         while ( SDL_PollEvent(&event) )
             if ( event.type == SDL_QUIT )
                 run = false;
 
-        DOS_RenderScreen();
+        DOS_DrawScreen();
     }
     
     SDL_Quit();
