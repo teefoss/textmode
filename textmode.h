@@ -168,9 +168,11 @@ typedef struct DOS_Screen DOS_Screen;
 void
 DOS_InitScreen(const char * window_name, int console_w, int console_h,
                DOS_Mode text_style, int border_size);
-void DOS_RenderScreen(void);
+void DOS_DrawScreen(void);
+void DOS_DrawScreenEx(void (* user_function)(void * data), void * user_data);
 void DOS_SwitchPage(int new_page);
 SDL_Window * DOS_GetWindow(void);
+SDL_Renderer * DOS_GetRenderer(void);
 void DOS_ClearScreen(void);
 void DOS_PrintChar(uint8_t ch);
 void DOS_PrintString(const char * format, ...);

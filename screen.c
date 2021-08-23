@@ -140,7 +140,7 @@ void DOS_SwitchPage(int new_page)
     printf("active page: %d\n", new_page);
 }
 
-void DOS_RenderScreen()
+void DOS_DrawScreen()
 {
     DOS_SetColor(screen.renderer, screen.border_color);
     SDL_RenderClear(screen.renderer);
@@ -148,9 +148,27 @@ void DOS_RenderScreen()
     SDL_RenderPresent(screen.renderer);
 }
 
+void DOS_DrawScreenEx(void (* user_function)(void * data), void * user_data)
+{
+    DOS_SetColor(screen.renderer, screen.border_color);
+    SDL_RenderClear(screen.renderer);
+    DOS_RenderConsole(ACTIVE_PAGE, screen.render_x, screen.render_y);
+    
+    if ( user_function ) {
+        user_function(user_data);
+    }
+    
+    SDL_RenderPresent(screen.renderer);
+}
+
 SDL_Window * DOS_GetWindow()
 {
     return screen.window;
+}
+
+SDL_Renderer * DOS_GetRenderer()
+{
+    return screen.renderer;
 }
 
 void DOS_PrintChar(uint8_t ch)

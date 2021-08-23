@@ -46,6 +46,7 @@ int HandelKey(SDL_Keycode key)
     return 1;
 }
 
+
 int main()
 {
     puts("\nDOSApp Test Program");
@@ -121,7 +122,7 @@ int main()
         DOS_SetForeground(arc4random_uniform(8) + 7);
         DOS_PrintChar(DOS_FACE2);
         
-        DOS_RenderScreen();
+        DOS_DrawScreen();
     }
     
     return EXIT_SUCCESS;

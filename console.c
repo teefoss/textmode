@@ -176,10 +176,10 @@ void DOS_CPrintString(DOS_Console * console, const char * format, ...)
     ch = buffer;
     while ( *ch ) {
         switch ( *ch ) {
-            case '\n': // TODO: test
+            case '\n':
                 NewLine(console);
                 break;
-            case '\t': // TODO: test
+            case '\t':
                 do {
                     AdvanceCursor(console, 1);
                 } while ( console->cursor_x % console->tab_size != 0 );
@@ -205,7 +205,7 @@ static void RenderCursor(DOS_Console * console, int x_offset, int y_offset)
     switch ( console->cursor_type ) {
         case DOS_CURSOR_NORMAL:
             cursor.h = console->mode / 5;
-            cursor.x += console->mode - cursor.h;
+            cursor.y += console->mode - cursor.h;
             break;
         case DOS_CURSOR_FULL:
             cursor.h = console->mode;
