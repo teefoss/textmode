@@ -10,7 +10,9 @@ struct DOS_Console
     int             fg_color;   // current foreground color
     int             bg_color;   // current background color
     int             tab_size;
+    int             margin;     // \n's go here
     bool            blink;      // whether newly printed chars blink
+    int             scale;
     DOS_Text *      text;
     DOS_CharInfo *  buffer;
     DOS_CursorType  cursor_type;
@@ -25,10 +27,21 @@ static DOS_CharInfo * GetCell(DOS_Console * console, int x, int y)
     return console->buffer + y * console->width + x;
 }
 
+void DOS_SetBackgroundTransparent(DOS_Console * console)
+{
+    for ( int y = 0; y < console->height; y++ ) {
+        for ( int x = 0; x < console->width; x++ ) {
+            DOS_CharInfo * info = GetCell(console, x, y);
+            info->attributes.transparent = 1;
+        }
+    }
+}
+
+
 static void NewLine(DOS_Console * console)
 {
     if ( console->cursor_y < console->height - 1 ) {
-        console->cursor_x = 0;
+        console->cursor_x = console->margin;
         ++console->cursor_y;
     }
 }
@@ -78,6 +91,8 @@ DOS_CreateConsole
     console->blink          = false;
     console->tab_size       = 4;
     console->cursor_type    = DOS_CURSOR_NORMAL;
+    console->margin         = 0;
+    console->scale          = 1;
     
     console->buffer = calloc(w * h, sizeof(*console->buffer));
     
@@ -121,7 +136,7 @@ void DOS_ClearConsole(DOS_Console * console)
 }
 
 
-void DOS_ClearBackground(DOS_Console * console)
+void DOS_CClearBackground(DOS_Console * console)
 {
     for ( int y = 0; y < console->height; y++ ) {
         for ( int x = 0; x < console->width; x++ ) {
@@ -241,8 +256,8 @@ void DOS_RenderConsole(DOS_Console * console, int x, int y)
     for ( int y1 = 0; y1 < console->height; y1++ ) {
         for ( int x1 = 0; x1 < console->width; x1++, cell++ ) {
 
-            cell_rect.x = x1 * DOS_CHAR_WIDTH + x;
-            cell_rect.y = y1 * console->mode + y;
+            cell_rect.x = x1 * DOS_CHAR_WIDTH * console->scale + x;
+            cell_rect.y = y1 * console->mode * console->scale + y;
             
             if (!cell->attributes.blink
                 || (cell->attributes.blink && SDL_GetTicks() % 600 < 300) ) {
@@ -322,4 +337,17 @@ DOS_Mode DOS_CGetMode(DOS_Console * console)
 void DOS_CSetCursorType(DOS_Console * console, DOS_CursorType type)
 {
     console->cursor_type = type;
+}
+
+
+void DOS_CSetScale(DOS_Console * console, int scale)
+{
+    console->scale = scale;
+    DOS_SetTextScale(console->text, scale);
+}
+
+
+void DOS_CSetMargin(DOS_Console * console, int margin)
+{
+    console->margin = margin;
 }

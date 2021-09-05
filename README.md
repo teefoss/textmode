@@ -110,7 +110,7 @@ DOS_Text * text = DOS_CreateText(renderer, DOS_MODE80, dos_palette, DOS_NUMCOLOR
 
 ## Console
 
-If you need a console that can be rendered anywhere within a window, use a `DOS_Console`.
+If you need a console that can be rendered anywhere within an SDL window, use a `DOS_Console`.
 
 ```c
 SDL_Renderer * renderer;
@@ -135,7 +135,7 @@ DOS_DestroyConsole(console);
 
 ## Screen
 
-Finally, if you need a full MS-DOS-like program with a multiple page console and colored border, use a `DOS_Screen`. This use case is the least flexible, but provides the simplest interface for writing a text mode program.
+Finally, if you need a full MS-DOS-like text mode program with a multiple page console and colored border, use a `DOS_Screen`. This use case is the least flexible, but provides the simplest interface for writing a text mode program.
 
 ```c
 #include <textmode.h>

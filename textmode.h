@@ -29,7 +29,7 @@ typedef struct
 typedef struct
 {
     uint8_t character;
-    DOS_Attributes  attributes;
+    DOS_Attributes attributes;
 } DOS_CharInfo;
 
 // -----------------------------------------------------------------------------
@@ -122,7 +122,8 @@ void DOS_ClearConsole(DOS_Console * console);
 
 // Set the background color of each console cell to the current
 // background color.
-void DOS_ClearBackground(DOS_Console * console);
+void DOS_CClearBackground(DOS_Console * console);
+void DOS_SetBackgroundTransparent(DOS_Console * console);
 
 // Render the console at window coordinates (x, y).
 void DOS_RenderConsole(DOS_Console * console, int x, int y);
@@ -158,7 +159,8 @@ void DOS_CSetBlink(DOS_Console * console, bool blink);
 
 void DOS_CSetTabSize(DOS_Console * console, int tab_size);
 void DOS_CSetCursorType(DOS_Console * console, DOS_CursorType type);
-
+void DOS_CSetScale(DOS_Console * console, int scale);
+void DOS_CSetMargin(DOS_Console * console, int margin);
 
 // -----------------------------------------------------------------------------
 // Screen
@@ -181,6 +183,7 @@ void DOS_SetBlink(bool blink);
 void DOS_SetBorderColor(int color);
 void DOS_SetForeground(int color);
 void DOS_SetBackground(int color);
+void DOS_ClearBackground(void);
 void DOS_SetFullscreen(bool fullscreen);
 void DOS_ToggleFullscreen(void);
 void DOS_SetScreenScale(int scale);
@@ -188,7 +191,9 @@ void DOS_IncreaseScreenScale(void);
 void DOS_DecreaseScreenScale(void);
 void DOS_SetCursorType(DOS_CursorType type);
 float DOS_LimitFrameRate(int fps);
-
+int DOS_GetX(void);
+int DOS_GetY(void);
+void DOS_SetMargin(int margin);
 
 // -----------------------------------------------------------------------------
 // Sound

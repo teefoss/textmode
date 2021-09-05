@@ -71,12 +71,12 @@ static SDL_Rect WindowSize()
 
 static SDL_Rect UnscaledWindowRect()
 {
-    SDL_Rect rect;
+    SDL_Rect rect = ConsoleSizeInPixels();
     
     rect.x = SDL_WINDOWPOS_CENTERED;
     rect.y = SDL_WINDOWPOS_CENTERED;
-    rect.w = screen.width * DOS_CHAR_WIDTH + screen.border_size * 2;
-    rect.h = screen.height * screen.mode + screen.border_size * 2;
+    rect.w += screen.border_size * 2;
+    rect.h += screen.border_size * 2;
     
     return rect;
 }
@@ -102,7 +102,9 @@ DOS_InitScreen
     screen.window_scale = 1;
     
     SDL_Rect w = UnscaledWindowRect();
-    screen.window = SDL_CreateWindow(window_name, w.x, w.y, w.w, w.h, 0);
+    uint32_t flags = 0;
+    //flags |= SDL_WINDOW_ALLOW_HIGHDPI;
+    screen.window = SDL_CreateWindow(window_name, w.x, w.y, w.w, w.h, flags);
     
     if ( screen.window == NULL ) {
         return NewScreenError("could not create SDL window");
@@ -114,15 +116,30 @@ DOS_InitScreen
         return NewScreenError("could not create SDL renderer");
     }
 
+#if 0
+    int rw;
+    SDL_GetRendererOutputSize(screen.renderer, &rw, NULL);
+    float x_scale = (float)rw / (float)w.w;
+
+    if ( x_scale != 1.0f ) {
+        SDL_RenderSetScale(screen.renderer, x_scale, x_scale);
+    }
+#endif
+    
     for ( int i = 0; i < DOS_NUM_PAGES; i++ ) {
-        screen.pages[i] = DOS_CreateConsole(screen.renderer,
-                                            console_w,
-                                            console_h,
-                                            mode);
+        screen.pages[i] = DOS_CreateConsole
+        (   screen.renderer,
+            console_w,
+            console_h,
+            mode );
         
         if ( screen.pages[i] == NULL ) {
             return NewScreenError("could not create console");
         }
+        
+//        if ( x_scale != 1.0f ) {
+//            DOS_CSetScale(screen.pages[i], x_scale);
+//        }
     }
                     
     DOS_SetFullscreen(false);
@@ -336,4 +353,28 @@ float DOS_LimitFrameRate(int fps)
     last = now;
     
     return dt;
+}
+
+
+void DOS_ClearBackground(void)
+{
+    DOS_CClearBackground(ACTIVE_PAGE);
+}
+
+
+int DOS_GetX(void)
+{
+    return DOS_CGetX(ACTIVE_PAGE);
+}
+
+
+int DOS_GetY(void)
+{
+    return DOS_CGetY(ACTIVE_PAGE);
+}
+
+
+void DOS_SetMargin(int margin)
+{
+    DOS_CSetMargin(ACTIVE_PAGE, margin);
 }
