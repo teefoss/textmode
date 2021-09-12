@@ -173,6 +173,7 @@ DOS_InitScreen(const char * window_name, int console_w, int console_h,
 void DOS_DrawScreen(void);
 void DOS_DrawScreenEx(void (* user_function)(void * data), void * user_data);
 void DOS_SwitchPage(int new_page);
+int DOS_CurrentPage(void);
 SDL_Window * DOS_GetWindow(void);
 SDL_Renderer * DOS_GetRenderer(void);
 void DOS_ClearScreen(void);

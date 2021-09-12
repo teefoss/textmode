@@ -154,7 +154,11 @@ void DOS_SwitchPage(int new_page)
     }
     
     screen.active_page = new_page;
-    printf("active page: %d\n", new_page);
+}
+
+int DOS_CurrentPage()
+{
+    return screen.active_page;
 }
 
 void DOS_DrawScreen()
