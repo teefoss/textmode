@@ -300,7 +300,6 @@ void DOS_SetScreenScale(int scale)
     }
     
     screen.window_scale = scale;
-    printf("scale set to %d\n", scale);
     
     SDL_Rect base_size = UnscaledWindowRect();
     int center = SDL_WINDOWPOS_CENTERED;
