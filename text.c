@@ -1,26 +1,10 @@
 #include "textmode.h"
 #include <stdlib.h>
 
-// TODO: 8-bit palette texture?
-
 #define DOS_NUM_CHARS 256
 
-// a sprite sheet for cp437 characters
-struct DOS_Text
-{
-    SDL_Texture * texture;
-    SDL_Renderer * renderer; // unowned reference
-    int draw_scale;
-    
-    // character style / height
-    int mode;
-            
-    // number of palette colors / rows of characters
-    int num_colors;
-};
-
-static const uint8_t * DOS_Data8(uint8_t ch);
-static const uint8_t * DOS_Data16(uint8_t ch);
+const uint8_t * DOS_Data8(uint8_t ch);
+const uint8_t * DOS_Data16(uint8_t ch);
 
 DOS_Attributes DOS_DefaultAttributes()
 {
@@ -46,7 +30,7 @@ DOS_RenderChar
     if ( mode == DOS_MODE40 ) {
         data = DOS_Data8(character);
     } else {
-        data = DOS_Data16(character); // default
+        data = DOS_Data16(character);
     }
         
     for ( int y1 = 0; y1 < (int)mode; y1++, data++ ) {
@@ -102,207 +86,7 @@ DOS_RenderString
     return (len + 1) * DOS_CHAR_WIDTH;
 }
 
-
-
-static bool InitTextTexture(DOS_Text * text)
-{
-    int format = SDL_PIXELFORMAT_RGBA8888;
-    int access = SDL_TEXTUREACCESS_TARGET;
-    int w = DOS_CHAR_WIDTH * (DOS_NUM_CHARS + 1); // one extra for bg rects
-    int h = text->mode * text->num_colors;
-    
-    text->texture = SDL_CreateTexture(text->renderer, format, access, w, h);
-    SDL_SetTextureBlendMode(text->texture, SDL_BLENDMODE_BLEND);
-    
-    return text->texture != NULL;
-}
-
-
-
-static void SetColor(SDL_Renderer * renderer, const SDL_Color * color)
-{
-    SDL_SetRenderDrawColor(renderer, color->r, color->g, color->b, color->a);
-}
-
-
-
-static void MakeTextTexture(DOS_Text * text, const SDL_Color * palette)
-{
-    // save current renderer & DOS settings
-    SDL_Texture * old_target = SDL_GetRenderTarget(text->renderer);
-    uint8_t r, g, b, a;
-    SDL_GetRenderDrawColor(text->renderer, &r, &g, &b, &a);
-
-    // clear texture to transparent background
-    SDL_SetRenderTarget(text->renderer, text->texture);
-    SDL_SetRenderDrawColor(text->renderer, 0, 0, 0, 0); // transparent bg
-    SDL_RenderClear(text->renderer);
-
-    SDL_Rect rect = {
-        .x = 0,
-        .y = 0,
-        .w = DOS_CHAR_WIDTH,
-        .h = text->mode
-    };
-        
-    for ( int y = 0; y < text->num_colors; y++ ) {
-        SetColor(text->renderer, &(palette[y]));
-        rect.y = y * text->mode;
-        
-        for ( int x = 0; x <= DOS_NUM_CHARS; x++ ) {
-            rect.x = x * DOS_CHAR_WIDTH;
-
-            if ( x == DOS_NUM_CHARS ) {
-                // at the end, draw a color rect for char bg
-                SDL_RenderFillRect(text->renderer, &rect);
-            } else {
-                DOS_RenderChar(text->renderer, rect.x, rect.y, text->mode, x);
-            }
-        }
-    }
-    
-    // restore settings
-    SDL_SetRenderTarget(text->renderer, old_target);
-    SDL_SetRenderDrawColor(text->renderer, r, g, b, a);
-}
-
-DOS_Text * DOS_CreateText(SDL_Renderer * renderer, DOS_Mode mode,
-                          const SDL_Color * palette, int num_colors )
-{
-    DOS_Text * text = malloc(sizeof(*text));
-    if ( text == NULL ) {
-        puts("__func__: could not allocate memory for text");
-        return NULL;
-    }
-    
-    text->renderer      = renderer;
-    text->draw_scale    = 1;
-    text->num_colors    = num_colors;
-    text->mode          = mode;
-            
-    if ( !InitTextTexture(text) ) {
-        fprintf(stderr, "__func__: could not initialize text texture");
-        free(text);
-        return NULL;
-    }
-    
-    MakeTextTexture(text, palette);
-
-    return text;
-}
-
-void DOS_SetTextScale(DOS_Text * text, int scale)
-{
-    text->draw_scale = scale;
-}
-
-
-static SDL_Rect CharRect(DOS_Text * text, uint8_t character, int fg_color)
-{
-    SDL_Rect rect;
-    rect.x = character * DOS_CHAR_WIDTH;
-    rect.y = fg_color * text->mode;
-    rect.w = DOS_CHAR_WIDTH;
-    rect.h = text->mode;
-    
-    return rect;
-}
-
-SDL_Rect DOS_CharSize(DOS_Text * text)
-{
-    SDL_Rect size = {
-        .x = 0,
-        .y = 0,
-        .w = DOS_CHAR_WIDTH * text->draw_scale,
-        .h = text->mode * text->draw_scale
-    };
-    
-    return size;
-}
-
-void DOS_TRenderChar(DOS_Text * text, int x, int y, DOS_CharInfo * info)
-{
-    SDL_Rect char_src = CharRect(text, info->character, info->attributes.fg_color);
-    
-    SDL_Rect dst;
-    dst.x = x;
-    dst.y = y;
-    dst.w = char_src.w * text->draw_scale;
-    dst.h = char_src.h * text->draw_scale;
-
-    if ( !info->attributes.transparent ) {
-        SDL_Rect bg_src;
-        bg_src.x = DOS_NUM_CHARS * DOS_CHAR_WIDTH;
-        bg_src.y = info->attributes.bg_color * text->mode;
-        bg_src.w = char_src.w;
-        bg_src.h = char_src.h;
-        SDL_RenderCopy(text->renderer, text->texture, &bg_src, &dst);
-    }
-    
-    SDL_RenderCopy(text->renderer, text->texture, &char_src, &dst);
-}
-
-void DOS_TRenderString(DOS_Text * text, int x, int y, DOS_Attributes * attr,
-                      const char * format, ...)
-{
-    int     len, x1;
-    char *  buffer;
-    char *  ch;
-    DOS_CharInfo info;
-    
-    va_list args[2];
-    va_start(args[0], format);
-    va_copy(args[1], args[0]);
-    
-    len = vsnprintf(NULL, 0, format, args[0]);
-    buffer = calloc(len + 1, sizeof(char));
-    vsnprintf(buffer, len + 1, format, args[1]);
-    
-    va_end(args[0]);
-    va_end(args[1]);
-    
-    info.attributes = *attr;
-    ch = buffer;
-    x1 = x;
-    while ( *ch ) {
-        info.character = *ch;
-        DOS_TRenderChar(text, x1, y, &info);
-        ch++;
-        x1 += DOS_CHAR_WIDTH;
-    }
-    
-    free(buffer);
-}
-
-void DOS_DestroyText(DOS_Text * text)
-{
-    if ( text ) {
-        SDL_DestroyTexture(text->texture);
-        free(text);
-    }
-}
-
-SDL_Renderer * DOS_GetTextRenderer(DOS_Text * text)
-{
-    return text->renderer;
-}
-
-void DOS_DebugPrinttext(DOS_Text * text)
-{
-    SDL_Rect dst;
-    dst.x = 0;
-    dst.y = 0;
-    dst.w = DOS_NUM_CHARS * DOS_CHAR_WIDTH + DOS_CHAR_WIDTH;
-    dst.h = text->num_colors * text->mode;
-    
-    dst.w *= text->draw_scale;
-    dst.h *= text->draw_scale;
-    
-    SDL_RenderCopy(text->renderer, text->texture, NULL, &dst);
-}
-
-
-static const unsigned char * DOS_Data8(unsigned char ch)
+const unsigned char * DOS_Data8(unsigned char ch)
 {
     static const unsigned char data[DOS_NUM_CHARS * 8] = {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -566,7 +350,7 @@ static const unsigned char * DOS_Data8(unsigned char ch)
     return data + ch * 8;
 }
 
-static const unsigned char * DOS_Data16(unsigned char ch)
+const unsigned char * DOS_Data16(unsigned char ch)
 {
     static const unsigned char data[DOS_NUM_CHARS * 16] = {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

@@ -1,9 +1,8 @@
 #include "textmode.h"
 
 #define DOS_NUM_PAGES   16
-#define ACTIVE_PAGE     screen.pages[screen.active_page]
 
-struct DOS_Screen
+typedef struct
 {
     SDL_Window *    window;
     int             window_scale;
@@ -23,11 +22,11 @@ struct DOS_Screen
     DOS_Mode        mode;
     int             render_x; // render position of the console
     int             render_y;
-};
+} DOS_Screen;
 
 static DOS_Screen screen;
+extern DOS_Console * current_page;
 
-// -----------------------------------------------------------------------------
 
 static void FreeScreen()
 {
@@ -40,7 +39,6 @@ static void FreeScreen()
     }
 }
 
-
 static void NewScreenError(const char * message)
 {
     fprintf(stderr, "DOS_InitScreen error: %s\n", message);
@@ -48,7 +46,6 @@ static void NewScreenError(const char * message)
     
     exit(EXIT_FAILURE);
 }
-
 
 static SDL_Rect ConsoleSizeInPixels()
 {
@@ -58,17 +55,6 @@ static SDL_Rect ConsoleSizeInPixels()
     
     return rect;
 }
-
-#if 0 // TODO: remove
-static SDL_Rect WindowSize()
-{
-    SDL_Rect rect;
-    SDL_GetWindowSize(screen.window, &rect.w, &rect.h);
-    
-    return rect;
-}
-#endif
-
 static SDL_Rect UnscaledWindowRect()
 {
     SDL_Rect rect = ConsoleSizeInPixels();
@@ -81,7 +67,9 @@ static SDL_Rect UnscaledWindowRect()
     return rect;
 }
 
-// -----------------------------------------------------------------------------
+
+
+
 
 void
 DOS_InitScreen
@@ -116,6 +104,8 @@ DOS_InitScreen
         return NewScreenError("could not create SDL renderer");
     }
 
+    SDL_SetRenderDrawBlendMode(screen.renderer, SDL_BLENDMODE_BLEND);
+    
 #if 0
     int rw;
     SDL_GetRendererOutputSize(screen.renderer, &rw, NULL);
@@ -127,21 +117,14 @@ DOS_InitScreen
 #endif
     
     for ( int i = 0; i < DOS_NUM_PAGES; i++ ) {
-        screen.pages[i] = DOS_CreateConsole
-        (   screen.renderer,
-            console_w,
-            console_h,
-            mode );
+        screen.pages[i] = DOS_CreateConsole(console_w, console_h, mode);
         
         if ( screen.pages[i] == NULL ) {
             return NewScreenError("could not create console");
         }
-        
-//        if ( x_scale != 1.0f ) {
-//            DOS_CSetScale(screen.pages[i], x_scale);
-//        }
     }
-                    
+          
+    current_page = screen.pages[0];
     DOS_SetFullscreen(false);
     
     atexit(FreeScreen);
@@ -154,6 +137,7 @@ void DOS_SwitchPage(int new_page)
     }
     
     screen.active_page = new_page;
+    current_page = screen.pages[new_page];
 }
 
 int DOS_CurrentPage()
@@ -165,7 +149,7 @@ void DOS_DrawScreen()
 {
     DOS_SetColor(screen.renderer, screen.border_color);
     SDL_RenderClear(screen.renderer);
-    DOS_RenderConsole(ACTIVE_PAGE, screen.render_x, screen.render_y);
+    DOS_RenderConsole(screen.renderer, current_page, screen.render_x, screen.render_y);
     SDL_RenderPresent(screen.renderer);
 }
 
@@ -173,7 +157,7 @@ void DOS_DrawScreenEx(void (* user_function)(void * data), void * user_data)
 {
     DOS_SetColor(screen.renderer, screen.border_color);
     SDL_RenderClear(screen.renderer);
-    DOS_RenderConsole(ACTIVE_PAGE, screen.render_x, screen.render_y);
+    DOS_RenderConsole(screen.renderer, current_page, screen.render_x, screen.render_y);
     
     if ( user_function ) {
         user_function(user_data);
@@ -192,59 +176,10 @@ SDL_Renderer * DOS_GetRenderer()
     return screen.renderer;
 }
 
-void DOS_PrintChar(uint8_t ch)
-{
-    DOS_CPrintChar(ACTIVE_PAGE, ch);
-}
-
-void DOS_PrintString(const char * format, ...)
-{    
-    va_list args;
-    char buf[1000]; // TODO: calculate len
-    
-    va_start(args, format);
-    vsnprintf(buf, sizeof(buf), format, args);
-    va_end(args);
-    
-    DOS_CPrintString(ACTIVE_PAGE, buf);
-}
-
-
-void DOS_ClearScreen()
-{
-    DOS_ClearConsole(ACTIVE_PAGE);
-}
-
-
-void DOS_GotoXY(int x, int y)
-{
-    DOS_CGotoXY(ACTIVE_PAGE, x, y);
-}
-
-
-void DOS_SetBlink(bool blink)
-{
-    DOS_CSetBlink(ACTIVE_PAGE, blink);
-}
-
-
 void DOS_SetBorderColor(int color)
 {
     screen.border_color = color;
 }
-
-
-void DOS_SetForeground(int color)
-{
-    DOS_CSetForeground(ACTIVE_PAGE, color);
-}
-
-
-void DOS_SetBackground(int color)
-{
-    DOS_CSetBackground(ACTIVE_PAGE, color);
-}
-
 
 static void UpdateRenderScaleAndConsolePosition()
 {
@@ -326,13 +261,6 @@ void DOS_DecreaseScreenScale()
     DOS_SetScreenScale(screen.window_scale - 1);
 }
 
-
-void DOS_SetCursorType(DOS_CursorType type)
-{
-    DOS_CSetCursorType(ACTIVE_PAGE, type);
-}
-
-
 float DOS_LimitFrameRate(int fps)
 {
     int interval = 1000 / fps;
@@ -358,26 +286,3 @@ float DOS_LimitFrameRate(int fps)
     return dt;
 }
 
-
-void DOS_ClearBackground(void)
-{
-    DOS_CClearBackground(ACTIVE_PAGE);
-}
-
-
-int DOS_GetX(void)
-{
-    return DOS_CGetX(ACTIVE_PAGE);
-}
-
-
-int DOS_GetY(void)
-{
-    return DOS_CGetY(ACTIVE_PAGE);
-}
-
-
-void DOS_SetMargin(int margin)
-{
-    DOS_CSetMargin(ACTIVE_PAGE, margin);
-}

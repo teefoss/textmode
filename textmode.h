@@ -23,7 +23,7 @@ typedef struct
     uint8_t fg_color      : 4; // foreground color
     uint8_t bg_color      : 4; // background color
     uint8_t transparent   : 1; // background is transparent
-    uint8_t blink         : 1; // whether text blinks
+    uint8_t blink         : 1; // text blinks
 } DOS_Attributes;
 
 typedef struct
@@ -32,8 +32,7 @@ typedef struct
     DOS_Attributes attributes;
 } DOS_CharInfo;
 
-// -----------------------------------------------------------------------------
-// CGA Color
+typedef struct DOS_Console DOS_Console;
 
 typedef enum
 {
@@ -55,52 +54,6 @@ typedef enum
     DOS_BRIGHT_WHITE
 } DOS_Color;
 
-extern const SDL_Color dos_palette[DOS_NUMCOLORS];
-
-void DOS_SetColor(SDL_Renderer * renderer, DOS_Color color);
-void DOS_SetColorAlpha(SDL_Renderer * renderer, DOS_Color color, uint8_t alpha);
-SDL_Color DOS_CGAToSDL(DOS_Color color);
-
-// -----------------------------------------------------------------------------
-// Basic Rendering of Code Page 437 Characters
-
-void DOS_RenderChar(SDL_Renderer * renderer, int x, int y, DOS_Mode mode,
-                    uint8_t character);
-int DOS_RenderString(SDL_Renderer * renderer, int x, int y, DOS_Mode mode,
-                     const char * format, ... );
-
-// the width in pixels of a given format string
-int DOS_StringWidth(const char * format, ...);
-
-
-// -----------------------------------------------------------------------------
-// Text Rendering Using a Sprite Sheet
-
-// structure describing a character 'sprite sheet', made from a color palette
-typedef struct DOS_Text DOS_Text;
-
-DOS_Attributes DOS_DefaultAttributes(void);
-
-DOS_Text * DOS_CreateText(SDL_Renderer * renderer, DOS_Mode mode,
-                          const SDL_Color * palette, int num_colors );
-
-// set the draw scale of given text sheet
-void DOS_SetTextScale(DOS_Text * text, int scale);
-
-// get scaled rectangle for character
-SDL_Rect DOS_CharSize(DOS_Text * text);
-
-// render charaters/strings using DOS_Text
-void DOS_TRenderChar(DOS_Text * text, int x, int y, DOS_CharInfo * info);
-void DOS_TRenderString(DOS_Text * text, int x, int y, DOS_Attributes * attr,
-                      const char * format, ... );
-
-void DOS_DestroyText(DOS_Text * text);
-
-
-// -----------------------------------------------------------------------------
-// Console
-
 // console cursor appearance options
 typedef enum
 {
@@ -109,95 +62,57 @@ typedef enum
     DOS_CURSOR_FULL     // cursor fills entire cell
 } DOS_CursorType;
 
-typedef struct DOS_Console DOS_Console;
+extern const SDL_Color dos_palette[DOS_NUMCOLORS];
 
-// w, h: the number of rows and columns
-DOS_Console * DOS_CreateConsole(SDL_Renderer * renderer, int w, int h,
-                                DOS_Mode text_style );
+void DOS_SetColor(SDL_Renderer * renderer, DOS_Color color);
+void DOS_SetColorAlpha(SDL_Renderer * renderer, DOS_Color color, uint8_t alpha);
+SDL_Color DOS_CGAToSDL(DOS_Color color);
+
+void DOS_RenderChar(SDL_Renderer * renderer, int x, int y, DOS_Mode mode, uint8_t character);
+int DOS_RenderString(SDL_Renderer * renderer, int x, int y, DOS_Mode mode, const char * format,...);
+int DOS_StringWidth(const char * format, ...);
+DOS_Attributes DOS_DefaultAttributes(void);
+
+// CONSOLE
+
+DOS_Console * DOS_CreateConsole(int w, int h, DOS_Mode text_style);
 void DOS_FreeConsole(DOS_Console * console);
+void DOS_SetActiveConsole(DOS_Console * console);
+void DOS_ClearScreen();
+void DOS_ClearBackground(void);
+void DOS_RenderConsole(SDL_Renderer * renderer, DOS_Console * console, int x, int y);
+void DOS_GotoXY(int x, int y);
+void DOS_SetForeground(int color);
+void DOS_SetBackground(int color);
+void DOS_PrintChar(uint8_t ch);
+void DOS_PrintString(const char * format, ...);
+int  DOS_GetX(void);
+int  DOS_GetY(void);
+DOS_CharInfo DOS_GetChar();
+void DOS_SetChar(DOS_CharInfo * char_info);
+void DOS_SetBlink(bool blink);
+void DOS_SetTabSize(int tab_size);
+void DOS_SetCursorType(DOS_CursorType type);
+void DOS_SetScale(int scale);
+void DOS_SetMargin(int margin);
 
-// Clear the entire console. The foreground color is set to DOS_WHITE, the
-// background color is set to DOS_BLACK, and the cursor is positioned at (0, 0).
-void DOS_ClearConsole(DOS_Console * console);
+// SCREEN
 
-// Set the background color of each console cell to the current
-// background color.
-void DOS_CClearBackground(DOS_Console * console);
-void DOS_SetBackgroundTransparent(DOS_Console * console);
-
-// Render the console at window coordinates (x, y).
-void DOS_RenderConsole(DOS_Console * console, int x, int y);
-
-// Position the cursor.
-void DOS_CGotoXY(DOS_Console * console, int x, int y);
-
-void DOS_CSetForeground(DOS_Console * console, int color);
-void DOS_CSetBackground(DOS_Console * console, int color);
-
-// Print character at current cursor location
-void DOS_CPrintChar(DOS_Console * console, uint8_t ch);
-
-// Print string at current cursor location. (supports \n and \t)
-void DOS_CPrintString(DOS_Console * console, const char * format, ...);
-
-// Get the current cursor position.
-int  DOS_CGetX(DOS_Console * console);
-int  DOS_CGetY(DOS_Console * console);
-
-// Get the console size (rows/columns)
-int  DOS_CGetWidth(DOS_Console * console);
-int  DOS_CGetHeight(DOS_Console * console);
-
-DOS_Mode DOS_CGetMode(DOS_Console * console);
-
-// Get/Set the character info at current cursor position.
-DOS_CharInfo DOS_CGetChar(DOS_Console * console);
-void DOS_CSetChar(DOS_Console * console, DOS_CharInfo * char_info);
-
-// Set whether newly printed characters/strings should blink.
-void DOS_CSetBlink(DOS_Console * console, bool blink);
-
-void DOS_CSetTabSize(DOS_Console * console, int tab_size);
-void DOS_CSetCursorType(DOS_Console * console, DOS_CursorType type);
-void DOS_CSetScale(DOS_Console * console, int scale);
-void DOS_CSetMargin(DOS_Console * console, int margin);
-
-// -----------------------------------------------------------------------------
-// Screen
-
-typedef struct DOS_Screen DOS_Screen;
-
-void
-DOS_InitScreen(const char * window_name, int console_w, int console_h,
-               DOS_Mode text_style, int border_size);
+void DOS_InitScreen(const char * window_name, int console_w, int console_h, DOS_Mode text_style, int border_size);
 void DOS_DrawScreen(void);
 void DOS_DrawScreenEx(void (* user_function)(void * data), void * user_data);
 void DOS_SwitchPage(int new_page);
 int DOS_CurrentPage(void);
 SDL_Window * DOS_GetWindow(void);
 SDL_Renderer * DOS_GetRenderer(void);
-void DOS_ClearScreen(void);
-void DOS_PrintChar(uint8_t ch);
-void DOS_PrintString(const char * format, ...);
-void DOS_GotoXY(int x, int y);
-void DOS_SetBlink(bool blink);
-void DOS_SetBorderColor(int color);
-void DOS_SetForeground(int color);
-void DOS_SetBackground(int color);
-void DOS_ClearBackground(void);
 void DOS_SetFullscreen(bool fullscreen);
 void DOS_ToggleFullscreen(void);
 void DOS_SetScreenScale(int scale);
 void DOS_IncreaseScreenScale(void);
 void DOS_DecreaseScreenScale(void);
-void DOS_SetCursorType(DOS_CursorType type);
 float DOS_LimitFrameRate(int fps);
-int DOS_GetX(void);
-int DOS_GetY(void);
-void DOS_SetMargin(int margin);
 
-// -----------------------------------------------------------------------------
-// Sound
+// SOUND
 
 void DOS_InitSound(void);
 

@@ -79,34 +79,6 @@ SDL_RenderPresent(renderer);
 
 
 
-## Character Sprite Sheet
-
-If you're doing a lot of rendering of text, or have a custom color palette, `DOS_Text` might provide better performance. Creating a `DOS_Text` generates a sprite sheet of CP437 characters.
-
-```c
-#include <textmode.h>
-...
-SDL_Color my_palette[3] = {
-    { 255, 0, 0, 255 },
-    { 0, 255, 0, 255 },
-    { 0, 0, 255, 255 }
-};
-SDL_Renderer * renderer;
-...
-DOS_Text * text = DOS_CreateText(renderer, DOS_MODE40, my_palette, 3);
-DOS_CharInfo attr = DOS_DefaultAttributes(); // white text on black background
-DOS_TRenderString(text, 0, 0, &attr, "Hello, galaxy");
-...
-DOS_DestroyText(text);
-```
-
-To create text with the default CGA palette, use the global variable `dos_palette`, which has 16 colors (`DOS_NUMCOLORS`).
-
-```c
-DOS_Text * text = DOS_CreateText(renderer, DOS_MODE80, dos_palette, DOS_NUMCOLORS);
-```
-
-
 
 ## Console
 
@@ -117,13 +89,13 @@ SDL_Renderer * renderer;
 ...
 #define ROWS 10
 #define COLS 15
-DOS_Console * console = DOS_CreateConsole(renderer, COLS, ROWS, DOS_MODE80);
-DOS_CSetCursorType(console, DOS_CURSOR_FULL);
+DOS_Console * console = DOS_CreateConsole(COLS, ROWS, DOS_MODE80);
+DOS_SetCursorType(DOS_CURSOR_FULL);
 ...
-DOS_ClearConsole(console); // clear to default attributes, cursor at 0, 0
-DOS_CGotoXY(console, 2, 2);
-DOS_CSetForeground(DOS_CYAN);
-DOS_CPrintString(console, "console size: %d x %d", COLS, ROWS);
+DOS_ClearScreen(); // clear to default attributes, cursor at 0, 0
+DOS_GotoXY(2, 2);
+DOS_SetForeground(DOS_CYAN);
+DOS_PrintString("console size: %d x %d", COLS, ROWS);
 ...
 DOS_RenderConsole(console, 0, 0);
 SDL_RenderPresent(renderer);
@@ -135,7 +107,7 @@ DOS_DestroyConsole(console);
 
 ## Screen
 
-Finally, if you need a full MS-DOS-like text mode program with a multiple page console and colored border, use a `DOS_Screen`. This use case is the least flexible, but provides the simplest interface for writing a text mode program.
+If you need a full MS-DOS-like text mode program with a multiple page console and colored border, use a `DOS_InitScreen()`.
 
 ```c
 #include <textmode.h>

@@ -122,7 +122,8 @@ int main()
         DOS_SetForeground(arc4random_uniform(8) + 7);
         DOS_PrintChar(DOS_FACE2);
         
-        DOS_DrawScreen();
+        //DOS_DrawScreen();
+        DOS_DrawScreenGlow();
     }
     
     return EXIT_SUCCESS;

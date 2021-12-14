@@ -13,12 +13,12 @@ struct DOS_Console
     int             margin;     // \n's go here
     bool            blink;      // whether newly printed chars blink
     int             scale;
-    DOS_Text *      text;
+    SDL_Surface *   surface;
     DOS_CharInfo *  buffer;
     DOS_CursorType  cursor_type;
 };
 
-SDL_Renderer * DOS_GetTextRenderer(DOS_Text * text);
+DOS_Console * current_page;
 
 // -----------------------------------------------------------------------------
 
@@ -26,17 +26,6 @@ static DOS_CharInfo * GetCell(DOS_Console * console, int x, int y)
 {
     return console->buffer + y * console->width + x;
 }
-
-void DOS_SetBackgroundTransparent(DOS_Console * console)
-{
-    for ( int y = 0; y < console->height; y++ ) {
-        for ( int x = 0; x < console->width; x++ ) {
-            DOS_CharInfo * info = GetCell(console, x, y);
-            info->attributes.transparent = 1;
-        }
-    }
-}
-
 
 static void NewLine(DOS_Console * console)
 {
@@ -69,25 +58,21 @@ static DOS_Console * NewConsoleError(DOS_Console * c, const char * message)
     return NULL;
 }
 
-// -----------------------------------------------------------------------------
 
-DOS_Console *
-DOS_CreateConsole
-(   SDL_Renderer * renderer,
-    int w,
-    int h,
-    DOS_Mode text_style )
+
+
+DOS_Console * DOS_CreateConsole(int w, int h, DOS_Mode mode)
 {
     DOS_Console * console = malloc( sizeof(*console) );
     
     if ( console == NULL )
         return NewConsoleError(NULL, "could not allocate memory for console");
     
-    console->mode           = text_style;
+    current_page = console;
+    console->mode           = mode;
     console->width          = w;
     console->height         = h;
     console->buffer         = NULL;
-    console->text           = NULL;
     console->blink          = false;
     console->tab_size       = 4;
     console->cursor_type    = DOS_CURSOR_NORMAL;
@@ -100,14 +85,23 @@ DOS_CreateConsole
         return NewConsoleError(console, "could not allocate buffer");
     }
     
-    console->text = DOS_CreateText(renderer, text_style, dos_palette, 16);
+    console->surface = SDL_CreateRGBSurface(0,
+                                            w * DOS_CHAR_WIDTH,
+                                            h * mode,
+                                            8,
+                                            0, 0, 0, 0);
     
-    if ( console->text == NULL ) {
-        return NewConsoleError(console, "could not create console text");
+    if ( console->surface == NULL ) {
+        return NewConsoleError(console, "failed to create console surface");
     }
+
+    SDL_SetPaletteColors(console->surface->format->palette,
+                         dos_palette,
+                         0,
+                         DOS_NUMCOLORS);
     
-    DOS_ClearConsole(console);
-        
+    DOS_ClearScreen();
+    
     return console;
 }
 
@@ -118,60 +112,104 @@ void DOS_FreeConsole(DOS_Console * console)
         if ( console->buffer ) {
             free(console->buffer);
         }
-        DOS_DestroyText(console->text);
+        if ( console->surface ) {
+            SDL_FreeSurface(console->surface);
+        }
         free(console);
     }
 }
 
-
-void DOS_ClearConsole(DOS_Console * console)
+void DOS_SetActiveConsole(DOS_Console * console)
 {
-    size_t size = sizeof(DOS_CharInfo) * console->width * console->height;
-    memset(console->buffer, 0, size);
-    
-    console->cursor_x = 0;
-    console->cursor_y = 0;
-    console->fg_color = DOS_WHITE;
-    console->bg_color = DOS_BLACK;
+    current_page = console;
 }
 
 
-void DOS_CClearBackground(DOS_Console * console)
+void DOS_ClearScreen()
 {
-    for ( int y = 0; y < console->height; y++ ) {
-        for ( int x = 0; x < console->width; x++ ) {
-            DOS_CharInfo * cell = GetCell(console, x, y);
-            cell->attributes.bg_color = console->bg_color;
+    size_t size = sizeof(DOS_CharInfo) * current_page->width * current_page->height;
+    memset(current_page->buffer, 0, size);
+    
+    SDL_FillRect(current_page->surface, NULL, 0);
+    
+    current_page->cursor_x = 0;
+    current_page->cursor_y = 0;
+    current_page->fg_color = DOS_WHITE;
+    current_page->bg_color = DOS_BLACK;
+}
+
+
+void DOS_ClearBackground()
+{
+    for ( int y = 0; y < current_page->height; y++ ) {
+        for ( int x = 0; x < current_page->width; x++ ) {
+            DOS_CharInfo * cell = GetCell(current_page, x, y);
+            cell->attributes.bg_color = current_page->bg_color;
         }
     }
 }
 
 
-void DOS_CSetForeground(DOS_Console * console, int color)
+void DOS_SetForeground(int color)
 {
-    console->fg_color = color;
+    current_page->fg_color = color;
 }
 
 
-void DOS_CSetBackground(DOS_Console * console, int color)
+void DOS_SetBackground(int color)
 {// TODO: test
-    console->bg_color = color;
+    current_page->bg_color = color;
 }
 
 
-void DOS_CPrintChar(DOS_Console * con, uint8_t ch)
+void DOS_PrintChar(uint8_t ch)
 {
-    DOS_CharInfo * cell = GetCell(con, con->cursor_x, con->cursor_y);
+    DOS_CharInfo * cell = GetCell(current_page, current_page->cursor_x, current_page->cursor_y);
     cell->character = ch;
-    cell->attributes.fg_color = con->fg_color;
-    cell->attributes.bg_color = con->bg_color;
-    cell->attributes.blink = con->blink;
+    cell->attributes.fg_color = current_page->fg_color;
+    cell->attributes.bg_color = current_page->bg_color;
+    cell->attributes.blink = current_page->blink;
     
-    AdvanceCursor(con, 1);
+    const uint8_t * data;
+    const uint8_t * DOS_Data8(uint8_t ch);
+    const uint8_t * DOS_Data16(uint8_t ch);
+    
+    if ( current_page->mode == DOS_MODE40 ) {
+        data = DOS_Data8(ch);
+    } else {
+        data = DOS_Data16(ch);
+    }
+    
+    SDL_LockSurface(current_page->surface);
+
+    int pitch = current_page->surface->pitch;
+    int x = current_page->cursor_x;
+    int y = current_page->cursor_y;
+    Uint8 * pixel = (Uint8 *)current_page->surface->pixels;
+    pixel += y * pitch * current_page->mode + x * DOS_CHAR_WIDTH;
+    
+    for ( int y1 = 0; y1 < (int)current_page->mode; y1++, data++ ) {
+        for ( int x1 = DOS_CHAR_WIDTH - 1; x1 >= 0; x1-- ) {
+            if ( *data & (1 << x1) ) {
+                *pixel = cell->attributes.fg_color;
+            } else {
+                if ( !cell->attributes.transparent ) {
+                    *pixel = cell->attributes.bg_color;
+                }
+            }
+            pixel++;
+        }
+        pixel -= DOS_CHAR_WIDTH;
+        pixel += pitch;
+    }
+
+    SDL_UnlockSurface(current_page->surface);
+    
+    AdvanceCursor(current_page, 1);
 }
 
 
-void DOS_CPrintString(DOS_Console * console, const char * format, ...)
+void DOS_PrintString(const char * format, ...)
 {
     int     len;
     char *  buffer;
@@ -192,15 +230,15 @@ void DOS_CPrintString(DOS_Console * console, const char * format, ...)
     while ( *ch ) {
         switch ( *ch ) {
             case '\n':
-                NewLine(console);
+                NewLine(current_page);
                 break;
             case '\t':
                 do {
-                    AdvanceCursor(console, 1);
-                } while ( console->cursor_x % console->tab_size != 0 );
+                    AdvanceCursor(current_page, 1);
+                } while ( current_page->cursor_x % current_page->tab_size != 0 );
                 break;
             default:
-                DOS_CPrintChar(console, *ch);
+                DOS_PrintChar(*ch);
                 break;
         }
         ch++;
@@ -210,20 +248,20 @@ void DOS_CPrintString(DOS_Console * console, const char * format, ...)
 }
 
 
-static void RenderCursor(DOS_Console * console, int x_offset, int y_offset)
+static void RenderCursor(SDL_Renderer * renderer, int x_offset, int y_offset)
 {
     SDL_Rect cursor;
-    cursor.x = console->cursor_x * DOS_CHAR_WIDTH + x_offset;
-    cursor.y = console->cursor_y * console->mode + y_offset;
+    cursor.x = current_page->cursor_x * DOS_CHAR_WIDTH + x_offset;
+    cursor.y = current_page->cursor_y * current_page->mode + y_offset;
     cursor.w = DOS_CHAR_WIDTH;
     
-    switch ( console->cursor_type ) {
+    switch ( current_page->cursor_type ) {
         case DOS_CURSOR_NORMAL:
-            cursor.h = console->mode / 5;
-            cursor.y += console->mode - cursor.h;
+            cursor.h = current_page->mode / 5;
+            cursor.y += current_page->mode - cursor.h;
             break;
         case DOS_CURSOR_FULL:
-            cursor.h = console->mode;
+            cursor.h = current_page->mode;
             break;
         default:
             return;
@@ -232,122 +270,81 @@ static void RenderCursor(DOS_Console * console, int x_offset, int y_offset)
     if ( SDL_GetTicks() % 300 < 150 ) {
         return;
     }
-    
-    SDL_Renderer * renderer = DOS_GetTextRenderer(console->text);
         
     uint8_t r, g, b, a;
     SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
     
-    DOS_SetColor(renderer, console->fg_color);
+    DOS_SetColor(renderer, current_page->fg_color);
     SDL_RenderFillRect(renderer, &cursor);
     
     SDL_SetRenderDrawColor(renderer, r, g, b, a); // restore
 }
 
 
-void DOS_RenderConsole(DOS_Console * console, int x, int y)
+void DOS_RenderConsole(SDL_Renderer * renderer, DOS_Console * console, int x, int y)
 {
-    DOS_CharInfo * cell = GetCell(console, 0, 0);
-
-    SDL_Rect cell_rect;
-    cell_rect.w = DOS_CHAR_WIDTH;
-    cell_rect.h = console->mode;
+    SDL_Texture * texture = SDL_CreateTextureFromSurface(renderer, console->surface);
     
-    for ( int y1 = 0; y1 < console->height; y1++ ) {
-        for ( int x1 = 0; x1 < console->width; x1++, cell++ ) {
-
-            cell_rect.x = x1 * DOS_CHAR_WIDTH * console->scale + x;
-            cell_rect.y = y1 * console->mode * console->scale + y;
-            
-            if (!cell->attributes.blink
-                || (cell->attributes.blink && SDL_GetTicks() % 600 < 300) ) {
-                DOS_TRenderChar(console->text, cell_rect.x, cell_rect.y, cell);
-            }
-        }
-    }
+    SDL_Rect dst;
+    dst.x = x,
+    dst.y = y,
+    dst.w = console->width * DOS_CHAR_WIDTH * console->scale;
+    dst.h = console->height * console->mode * console->scale;
+    SDL_RenderCopy(renderer, texture, NULL, &dst);
     
-    RenderCursor(console, x, y);
+    RenderCursor(renderer, x, y);
 }
 
-
-void DOS_CGotoXY(DOS_Console * console, int x, int y)
+void DOS_GotoXY(int x, int y)
 {// TODO: test
-    if ( ValidCoord(console, x, y) ) {
-        console->cursor_x = x;
-        console->cursor_y = y;
+    if ( ValidCoord(current_page, x, y) ) {
+        current_page->cursor_x = x;
+        current_page->cursor_y = y;
     }
 }
 
-
-int DOS_CGetX(DOS_Console * console)
+int DOS_GetX()
 {
-    return console->cursor_x;
+    return current_page->cursor_x;
 }
 
-
-int DOS_CGetY(DOS_Console * console)
+int DOS_GetY()
 {
-    return console->cursor_y;
+    return current_page->cursor_y;
 }
 
-
-int  DOS_CGetWidth(DOS_Console * console)
-{
-    return console->width;
-}
-
-
-int  DOS_CGetHeight(DOS_Console * console)
-{
-    return console->height;
-}
-
-
-DOS_CharInfo DOS_CGetChar(DOS_Console * console)
+DOS_CharInfo DOS_GetChar()
 {// TODO: test
-    return *(GetCell(console, console->cursor_x, console->cursor_y));
+    return *(GetCell(current_page, current_page->cursor_x, current_page->cursor_y));
 }
 
-
-void DOS_CSetChar(DOS_Console * console, DOS_CharInfo * char_info)
+void DOS_SetChar(DOS_CharInfo * char_info)
 {// TODO: test
-    DOS_CharInfo * cell = GetCell(console, console->cursor_x, console->cursor_y);
+    DOS_CharInfo * cell = GetCell(current_page, current_page->cursor_x, current_page->cursor_y);
     *cell = *char_info;
 }
 
-
-void DOS_CSetBlink(DOS_Console * console, bool blink)
+void DOS_SetBlink(bool blink)
 {
-    console->blink = blink;
+    current_page->blink = blink;
 }
 
-
-void DOS_CSetTabSize(DOS_Console * console, int tab_size)
+void DOS_SetTabSize(int tab_size)
 {// TODO: test
-    console->tab_size = tab_size;
+    current_page->tab_size = tab_size;
 }
 
-
-DOS_Mode DOS_CGetMode(DOS_Console * console)
+void DOS_SetCursorType(DOS_CursorType type)
 {
-    return console->mode;
+    current_page->cursor_type = type;
 }
 
-
-void DOS_CSetCursorType(DOS_Console * console, DOS_CursorType type)
+void DOS_SetScale(int scale)
 {
-    console->cursor_type = type;
+    current_page->scale = scale;
 }
 
-
-void DOS_CSetScale(DOS_Console * console, int scale)
+void DOS_SetMargin(int margin)
 {
-    console->scale = scale;
-    DOS_SetTextScale(console->text, scale);
-}
-
-
-void DOS_CSetMargin(DOS_Console * console, int margin)
-{
-    console->margin = margin;
+    current_page->margin = margin;
 }
