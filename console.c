@@ -105,7 +105,6 @@ DOS_Console * DOS_CreateConsole(int w, int h, DOS_Mode mode)
     return console;
 }
 
-
 void DOS_FreeConsole(DOS_Console * console)
 {
     if ( console ) {
@@ -124,7 +123,6 @@ void DOS_SetActiveConsole(DOS_Console * console)
     current_page = console;
 }
 
-
 void DOS_ClearScreen()
 {
     size_t size = sizeof(DOS_CharInfo) * current_page->width * current_page->height;
@@ -138,7 +136,6 @@ void DOS_ClearScreen()
     current_page->bg_color = DOS_BLACK;
 }
 
-
 void DOS_ClearBackground()
 {
     for ( int y = 0; y < current_page->height; y++ ) {
@@ -149,18 +146,15 @@ void DOS_ClearBackground()
     }
 }
 
-
 void DOS_SetForeground(int color)
 {
     current_page->fg_color = color;
 }
 
-
 void DOS_SetBackground(int color)
 {// TODO: test
     current_page->bg_color = color;
 }
-
 
 void DOS_PrintChar(uint8_t ch)
 {
@@ -208,7 +202,6 @@ void DOS_PrintChar(uint8_t ch)
     AdvanceCursor(current_page, 1);
 }
 
-
 void DOS_PrintString(const char * format, ...)
 {
     int     len;
@@ -247,7 +240,6 @@ void DOS_PrintString(const char * format, ...)
     free(buffer);
 }
 
-
 static void RenderCursor(SDL_Renderer * renderer, int x_offset, int y_offset)
 {
     SDL_Rect cursor;
@@ -279,7 +271,6 @@ static void RenderCursor(SDL_Renderer * renderer, int x_offset, int y_offset)
     
     SDL_SetRenderDrawColor(renderer, r, g, b, a); // restore
 }
-
 
 void DOS_RenderConsole(SDL_Renderer * renderer, DOS_Console * console, int x, int y)
 {

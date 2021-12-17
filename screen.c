@@ -30,7 +30,6 @@ extern DOS_Console * current_page;
 
 static void FreeScreen()
 {
-    
     SDL_DestroyRenderer(screen.renderer);
     SDL_DestroyWindow(screen.window);
     
@@ -55,6 +54,7 @@ static SDL_Rect ConsoleSizeInPixels()
     
     return rect;
 }
+
 static SDL_Rect UnscaledWindowRect()
 {
     SDL_Rect rect = ConsoleSizeInPixels();
@@ -208,7 +208,6 @@ static void UpdateRenderScaleAndConsolePosition()
     screen.render_y = (window.h/scale - console.h) / 2;
 }
 
-
 void DOS_SetFullscreen(bool fullscreen)
 {
     if ( fullscreen ) {
@@ -220,13 +219,11 @@ void DOS_SetFullscreen(bool fullscreen)
     UpdateRenderScaleAndConsolePosition();
 }
 
-
 void DOS_ToggleFullscreen()
 {
     screen.fullscreen = !screen.fullscreen;
     DOS_SetFullscreen(screen.fullscreen);
 }
-
 
 void DOS_SetScreenScale(int scale)
 {
@@ -249,12 +246,10 @@ void DOS_SetScreenScale(int scale)
     UpdateRenderScaleAndConsolePosition();
 }
 
-
 void DOS_IncreaseScreenScale()
 {
     DOS_SetScreenScale(screen.window_scale + 1);
 }
-
 
 void DOS_DecreaseScreenScale()
 {

@@ -131,6 +131,9 @@ void DOS_QueueSound(unsigned frequency, unsigned milliseconds);
 // play any sounds queued with DOS_QueueSound() ayschronously
 void DOS_PlayQueuedSound(void);
 
+// clear any queued sound and stop playback
+void DOS_StopSound(void);
+
 /* plays musical notes asynchronous
    string format:
                                     EXAMPLE

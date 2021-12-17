@@ -132,6 +132,12 @@ void DOS_Sound(unsigned frequency, unsigned milliseconds)
 }
 
 
+void DOS_StopSound()
+{
+    SDL_ClearQueuedAudio(device);
+    SDL_PauseAudioDevice(device, SDL_TRUE);
+}
+
 
 void DOS_SoundAsync(unsigned frequency, unsigned milliseconds)
 {
