@@ -62,7 +62,7 @@ typedef enum
     DOS_CURSOR_FULL     // cursor fills entire cell
 } DOS_CursorType;
 
-extern const SDL_Color dos_palette[DOS_NUMCOLORS];
+extern const SDL_Color dos_palette[DOS_NUMCOLORS + 1];
 
 void DOS_SetColor(SDL_Renderer * renderer, DOS_Color color);
 void DOS_SetColorAlpha(SDL_Renderer * renderer, DOS_Color color, uint8_t alpha);
@@ -80,6 +80,7 @@ void DOS_FreeConsole(DOS_Console * console);
 void DOS_SetActiveConsole(DOS_Console * console);
 void DOS_ClearScreen();
 void DOS_ClearBackground(void);
+void DOS_SetTransparentBackground(void);
 void DOS_RenderConsole(SDL_Renderer * renderer, DOS_Console * console, int x, int y);
 void DOS_GotoXY(int x, int y);
 void DOS_SetForeground(int color);

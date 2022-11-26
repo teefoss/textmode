@@ -79,6 +79,12 @@ DOS_InitScreen
     DOS_Mode mode,
     int border_size )
 {
+    Uint32 subsystem_mask = SDL_INIT_VIDEO | SDL_INIT_AUDIO;
+    if ( SDL_WasInit(subsystem_mask) != subsystem_mask ) {
+        SDL_Init(subsystem_mask);
+        atexit(SDL_Quit);
+    }
+    
     screen.width        = console_w;
     screen.height       = console_h;
     screen.mode         = mode;

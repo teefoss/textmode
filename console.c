@@ -58,9 +58,6 @@ static DOS_Console * NewConsoleError(DOS_Console * c, const char * message)
     return NULL;
 }
 
-
-
-
 DOS_Console * DOS_CreateConsole(int w, int h, DOS_Mode mode)
 {
     DOS_Console * console = malloc( sizeof(*console) );
@@ -85,20 +82,27 @@ DOS_Console * DOS_CreateConsole(int w, int h, DOS_Mode mode)
         return NewConsoleError(console, "could not allocate buffer");
     }
     
+    Uint32 rmask, gmask, bmask, amask;
+    #if SDL_BYTEORDER == SDL_BIG_ENDIAN
+        rmask = 0xff000000;
+        gmask = 0x00ff0000;
+        bmask = 0x0000ff00;
+        amask = 0x000000ff;
+    #else
+        rmask = 0x000000ff;
+        gmask = 0x0000ff00;
+        bmask = 0x00ff0000;
+        amask = 0xff000000;
+    #endif
     console->surface = SDL_CreateRGBSurface(0,
                                             w * DOS_CHAR_WIDTH,
                                             h * mode,
-                                            8,
-                                            0, 0, 0, 0);
+                                            32,
+                                            rmask, gmask, bmask, amask);
     
     if ( console->surface == NULL ) {
         return NewConsoleError(console, "failed to create console surface");
     }
-
-    SDL_SetPaletteColors(console->surface->format->palette,
-                         dos_palette,
-                         0,
-                         DOS_NUMCOLORS);
     
     DOS_ClearScreen();
     
@@ -156,6 +160,26 @@ void DOS_SetBackground(int color)
     current_page->bg_color = color;
 }
 
+void DOS_SetTransparentBackground()
+{
+    for ( int y = 0; y < current_page->height; y++ ) {
+        for ( int x = 0; x < current_page->width; x++ ) {
+            DOS_CharInfo * cell = GetCell(current_page, x, y);
+            cell->attributes.transparent = 1;
+        }
+    }
+}
+
+//static const SDL_Color transparent = { 0, 0, 0, 0 };
+
+void SetPixel(int x, int y, const SDL_Color * c)
+{
+    Uint8 * pixels = (Uint8 *)current_page->surface->pixels;
+    int bpp = current_page->surface->format->BytesPerPixel;
+    Uint32 * target_pixel = (Uint32 *)(pixels + y * current_page->surface->pitch + x * bpp);
+    *target_pixel = SDL_MapRGBA(current_page->surface->format, c->r, c->g, c->b, c->a);
+}
+
 void DOS_PrintChar(uint8_t ch)
 {
     DOS_CharInfo * cell = GetCell(current_page, current_page->cursor_x, current_page->cursor_y);
@@ -177,23 +201,33 @@ void DOS_PrintChar(uint8_t ch)
     SDL_LockSurface(current_page->surface);
 
     int pitch = current_page->surface->pitch;
+    int bpp = current_page->surface->format->BytesPerPixel;
     int x = current_page->cursor_x;
     int y = current_page->cursor_y;
     Uint8 * pixel = (Uint8 *)current_page->surface->pixels;
-    pixel += y * pitch * current_page->mode + x * DOS_CHAR_WIDTH;
+    pixel += y * pitch * current_page->mode + x * DOS_CHAR_WIDTH * bpp;
     
     for ( int y1 = 0; y1 < (int)current_page->mode; y1++, data++ ) {
         for ( int x1 = DOS_CHAR_WIDTH - 1; x1 >= 0; x1-- ) {
             if ( *data & (1 << x1) ) {
-                *pixel = cell->attributes.fg_color;
+                const SDL_Color * c;
+                if ( cell->attributes.blink && SDL_GetTicks() % 600 < 300) {
+                    c = &dos_palette[cell->attributes.bg_color];
+                } else {
+                    c = &dos_palette[cell->attributes.fg_color];
+                }
+                *(Uint32 *)pixel = SDL_MapRGBA(current_page->surface->format, c->r, c->g, c->b, c->a);
             } else {
                 if ( !cell->attributes.transparent ) {
-                    *pixel = cell->attributes.bg_color;
+                    const SDL_Color * c = &dos_palette[cell->attributes.bg_color];
+                    *(Uint32 *)pixel = SDL_MapRGBA(current_page->surface->format, c->r, c->g, c->b, c->a);
+                } else {
+                    *(Uint32 *)pixel = SDL_MapRGBA(current_page->surface->format, 0, 0, 0, 0);
                 }
             }
-            pixel++;
+            pixel += bpp;
         }
-        pixel -= DOS_CHAR_WIDTH;
+        pixel -= DOS_CHAR_WIDTH * bpp;
         pixel += pitch;
     }
 
@@ -282,6 +316,8 @@ void DOS_RenderConsole(SDL_Renderer * renderer, DOS_Console * console, int x, in
     dst.w = console->width * DOS_CHAR_WIDTH * console->scale;
     dst.h = console->height * console->mode * console->scale;
     SDL_RenderCopy(renderer, texture, NULL, &dst);
+    
+    SDL_DestroyTexture(texture);
     
     RenderCursor(renderer, x, y);
 }
