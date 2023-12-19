@@ -60,7 +60,7 @@ int main()
     
     DOS_InitScreen("test", w, h, DOS_MODE80, 8);
     //DOS_ToggleFullscreen();
-    DOS_SetBorderColor(DOS_BLUE);
+//    DOS_SetBorderColor(DOS_BLUE);
     
     // debug corners
     DOS_GotoXY(0, 0);
@@ -121,8 +121,7 @@ int main()
         DOS_SetForeground(arc4random_uniform(8) + 7);
         DOS_PrintChar(DOS_FACE2);
         
-        //DOS_DrawScreen();
-        DOS_DrawScreenGlow();
+        DOS_DrawScreen();
     }
     
     return EXIT_SUCCESS;

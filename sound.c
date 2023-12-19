@@ -255,7 +255,7 @@ void DOS_Play(const char * string, ...)
                 int silence_ms = total_ms * ((8.0f - (float)mode) / 8.0f);
 
                 // and finally, queue it
-                DOS_AddSound(NoteNumberToFrequency(note_num), note_ms);
+                DOS_AddSound(NoteNumberToFrequency(note), note_ms);
                 DOS_AddSound(0, silence_ms);
                 break;
             } // A-G, N, and P

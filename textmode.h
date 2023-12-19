@@ -98,6 +98,7 @@ void DOS_SetScale(int scale);
 void DOS_SetMargin(int margin);
 
 // SCREEN
+// TODO: border color?
 
 void DOS_InitScreen(const char * window_name, int console_w, int console_h, DOS_Mode text_style, int border_size);
 void DOS_DrawScreen(void);

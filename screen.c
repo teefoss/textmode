@@ -25,7 +25,7 @@ typedef struct
 } DOS_Screen;
 
 static DOS_Screen screen;
-extern DOS_Console * current_page;
+extern DOS_Console * _current_page;
 
 
 static void FreeScreen()
@@ -107,17 +107,7 @@ DOS_InitScreen
     }
 
     SDL_SetRenderDrawBlendMode(screen.renderer, SDL_BLENDMODE_BLEND);
-    
-#if 0
-    int rw;
-    SDL_GetRendererOutputSize(screen.renderer, &rw, NULL);
-    float x_scale = (float)rw / (float)w.w;
-
-    if ( x_scale != 1.0f ) {
-        SDL_RenderSetScale(screen.renderer, x_scale, x_scale);
-    }
-#endif
-    
+        
     for ( int i = 0; i < DOS_NUM_PAGES; i++ ) {
         screen.pages[i] = DOS_CreateConsole(console_w, console_h, mode);
         
@@ -126,7 +116,7 @@ DOS_InitScreen
         }
     }
           
-    current_page = screen.pages[0];
+    _current_page = screen.pages[0];
     DOS_SetFullscreen(false);
     
     atexit(FreeScreen);
@@ -139,7 +129,7 @@ void DOS_SwitchPage(int new_page)
     }
     
     screen.active_page = new_page;
-    current_page = screen.pages[new_page];
+    _current_page = screen.pages[new_page];
 }
 
 int DOS_CurrentPage()
@@ -151,7 +141,7 @@ void DOS_DrawScreen()
 {
     DOS_SetColor(screen.renderer, screen.border_color);
     SDL_RenderClear(screen.renderer);
-    DOS_RenderConsole(screen.renderer, current_page, screen.render_x, screen.render_y);
+    DOS_RenderConsole(screen.renderer, _current_page, screen.render_x, screen.render_y);
     SDL_RenderPresent(screen.renderer);
 }
 
@@ -159,7 +149,7 @@ void DOS_DrawScreenEx(void (* user_function)(void * data), void * user_data)
 {
     DOS_SetColor(screen.renderer, screen.border_color);
     SDL_RenderClear(screen.renderer);
-    DOS_RenderConsole(screen.renderer, current_page, screen.render_x, screen.render_y);
+    DOS_RenderConsole(screen.renderer, _current_page, screen.render_x, screen.render_y);
     
     if ( user_function ) {
         user_function(user_data);
