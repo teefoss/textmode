@@ -114,40 +114,73 @@ void DOS_DecreaseScreenScale(void);
 float DOS_LimitFrameRate(int fps);
 
 // SOUND
+// PC beeper emulation. (Monophonic square wave playback).
+// All sound is played asynchronously.
 
+/**
+ *  Initialize sound. Must be called before using other sound functions.
+ */
 void DOS_InitSound(void);
 
-// play a pitch (suspends program execution sound plays)
+/** 
+ *  Set the volume for all playback.
+ *  Valid range: 1-15 (default: 5)
+ */
+void DOS_SetVolume(unsigned value);
+
+/**
+ *  Play a frequency of given duration, stopping any currently playing sound.
+ */
 void DOS_Sound(unsigned frequency, unsigned milliseconds);
 
-// play a pitch asynchronously
-void DOS_SoundAsync(unsigned frequency, unsigned milliseconds);
-
-// play an 800 hertz tone for 200 milliseconds
+/** 
+ *  Play a pitch of 800 Hz for 200 milliseconds
+ */
 void DOS_Beep(void);
 
-// queue a pitch that can be played later with DOS_PlayQueuedSound()
-void DOS_QueueSound(unsigned frequency, unsigned milliseconds);
+/**
+ *  Add a frequency to a queue to be played. If sound is not already playing,
+ *  playback is immediate. Can be called multiple times successtion to play
+ *  multiple pitches.
+ */
+void DOS_AddSound(unsigned frequency, unsigned milliseconds);
 
-// play any sounds queued with DOS_QueueSound() ayschronously
-void DOS_PlayQueuedSound(void);
-
-// clear any queued sound and stop playback
+/**
+ *  Stops any sound that is currently playing.
+ */
 void DOS_StopSound(void);
 
-/* plays musical notes asynchronous
-   string format:
-                                    EXAMPLE
-     notes:  a b c d e f g          "ccggaag"
-      flat:  [note]-                "a- b-"
-     sharp:  [note]+                "c+ d+"
-    length:  l[int(1, 2, 4...128)]  "l8 cdef l2 g"
-     tempo:  t[bmp]                 "t80 l2 g+ef+g+"
-    octave:  o[int(1-6)]            "o6 ba+ba+b"
-             > increase octave      "a b > c"
-             < decrease octave      "l2 e l4 dc < b"
+/**
+ *  Mute or unmute all sound.
  */
-void DOS_Play(const char * string);
+void DOS_Mute(bool muted);
+
+/** Returns true if sound is currently playing.
+ *  - Note: This is useful if you wish to suspend the program while sound
+ *  plays, for example
+ */
+bool DOS_SoundIsPlaying(void);
+
+/**
+ *  Play musical notes.
+ *
+ *  (Spaces in play strings are optional and are ignored.)
+ *
+ *                                   EXAMPLE
+ *    notes:  a b c d e f g          "ccggaag" (beginning of Twinkle, Twinkle)
+ *     flat:  [note]-                "a- b-" (plays A-flat, B-flat)
+ *    sharp:  [note]+                "c+ d+" (plays C-sharp, D-sharp)
+ *   length:  l[int(1, 2, 4...128)]  "l8 cdef l2 g" (plays eight-notes, etc)
+ *    tempo:  t[bmp]                 "t80 l2 g+ef+g+"
+ *   octave:  o[int(1-6)]            "o6 ba+ba+b" (plays notes in octave 6)
+ *            > increase octave      "a b > c"
+ *            < decrease octave      "l2 e l4 dc < b"
+ *    music:  m[s, n, l]             "ms l16 cdef ml l8 g b > ms c < c"
+ *            s: staccato (6/8 length)
+ *            n: normal   (7/8 length, default)
+ *            l: legato   (8/8 length)
+ */
+void DOS_Play(const char * string, ...);
 
 
 // -----------------------------------------------------------------------------

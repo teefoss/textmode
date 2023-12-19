@@ -67,10 +67,6 @@ static SDL_Rect UnscaledWindowRect()
     return rect;
 }
 
-
-
-
-
 void
 DOS_InitScreen
 (   const char * window_name,

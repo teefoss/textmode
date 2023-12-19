@@ -1,263 +1,308 @@
 #include "textmode.h"
 
-static SDL_AudioSpec        spec;
-static SDL_AudioDeviceID    device;
+static SDL_AudioSpec spec;
+static SDL_AudioDeviceID device;
+static uint8_t volume = 5;
 
-static double CalculateFrequency(int note, int octave)
+static bool is_muted = false;
+
+
+static double NoteNumberToFrequency(int note_num)
 {
-    double frequency = 32.70325;
-        
-    for ( int i = 1; i < octave; i++ ) {
-        frequency *= 2.0;
-    }
+    static const int frequencies[] = { // in octave 6
+        4186, // C
+        4435, // C#
+        4699, // D
+        4978, // D#
+        5274, // E
+        5588, // F
+        5920, // F#
+        6272, // G
+        6645, // G#
+        7040, // A
+        7459, // A#
+        7902, // B
+    };
 
-    for ( int i = 0; i < note; i++ ) {
-        frequency *= 1.05946309438;
-    }
-    
-    return frequency;
+    int octave = (note_num - 1) / 12;
+    int note = (note_num - 1) % 12;
+    int freq = frequencies[note];
+
+    int octaves_down = 6 - octave;
+    while ( octaves_down-- )
+        freq /= 2;
+
+    return (double)freq * 2.0; // basic notes sound 1 octave higher
 }
 
-// queue and play a note
-#if 0
-static void PlayNote(int note, int octave, int milliseconds)
-{
-    double frequency = CalculateFrequency(note, octave);
-    DOS_Sound(frequency, milliseconds);
-}
-#endif
-
-static int NoteValueToMS(int nv, int tempo)
-{
-    float ms_per_beat = (60.0f / (float)tempo) * 1000.0f;
-    float ratio = 4.0f / (float)nv;
-    float result = ms_per_beat * ratio;
-        
-    return result;
-}
-
-// just queue a note
-static void QueueNote(int note, int octave, int milliseconds)
-{
-    double frequency = CalculateFrequency(note, octave);
-    DOS_QueueSound(frequency, milliseconds);
-}
-
-// play whatever is in the queue.
-static int PlayQueuedSound(void * ptr)
-{
-    (void)ptr; // present so signature matches type SDL_ThreadFunction
-    
-    SDL_PauseAudioDevice(device, SDL_FALSE);
-    
-    while ( SDL_GetQueuedAudioSize(device) )
-        ;
-    
+static void DOS_QuitSound(void) {
+    DOS_StopSound();
     SDL_PauseAudioDevice(device, SDL_TRUE);
-    
-    return 0;
+    SDL_CloseAudioDevice(device);
 }
 
-static int ValidNoteValue(int value)
+void DOS_Mute(bool muted)
 {
-    int values[] = { 1, 2, 4, 8, 16, 32, 64, 128 };
-    int count = sizeof(values) / sizeof(values[0]);
+    is_muted = muted;
+}
+
+bool DOS_SoundIsPlaying(void)
+{
+    return SDL_GetQueuedAudioSize(device) > 0;
+}
+
+void DOS_AddSound(unsigned frequency, unsigned milliseconds)
+{
+    if ( is_muted ) {
+        return;
+    }
     
-    for ( int i = 0; i < count; i++ ) {
-        if ( value == values[i] ) {
-            return 1;
+    float period = (float)spec.freq / (float)frequency;
+    int len = (float)spec.freq * ((float)milliseconds / 1000.0f);
+
+    for ( int i = 0; i < len; i++ ) {
+        int8_t sample;
+
+        if ( frequency == 0 ) {
+            sample = spec.silence;
+        } else {
+            sample = (int)((float)i / period) % 2 ? volume : -volume;
         }
-    }
-    
-    return 0;
-}
-static int SetOctave(int new_oct)
-{
-    if ( new_oct > 6 ) {
-        new_oct = 6;
-    } else if ( new_oct < 1 ) {
-        new_oct = 1;
-    }
 
-    return new_oct;
+        SDL_QueueAudio(device, &sample, sizeof(sample));
+    }
 }
-
-// -----------------------------------------------------------------------------
 
 void DOS_InitSound(void)
 {
-    memset(&spec, 0, sizeof(spec));
-    
-    spec.freq = 44100;
-    spec.format = AUDIO_S8;
-    spec.channels = 1;
-    spec.samples = 4096;
-    spec.callback = NULL;
-
-    device = SDL_OpenAudioDevice(NULL, 0, &spec, NULL, 0);
-}
-
-// TODO: use QueueSound freq = 0 instead
-#if 0
-static void QueueSilence(unsigned milliseconds)
-{
-    int len = (float)spec.freq * ((float)milliseconds / 1000.0f);
-    for ( int i = 0; i < len; i++ ) {
-        int8_t sample = 0;
-        SDL_QueueAudio(device, &sample, sizeof(sample));
+    if ( SDL_WasInit(SDL_INIT_AUDIO) == 0 ) {
+        int result = SDL_InitSubSystem(SDL_INIT_AUDIO);
+        if ( result < 0 )
+            fprintf(stderr, "error: failed to init SDL audio subsystem: %s", SDL_GetError());
     }
-}
-#endif
 
-// just queue a sound
-void DOS_QueueSound(unsigned frequency, unsigned milliseconds)
-{
-    int period = (float)spec.freq / (float)frequency;
-    int len = (float)spec.freq * ((float)milliseconds / 1000.0f);
-    int volume = 5;
-    
-    for ( int i = 0; i < len; i++ ) {
-        int8_t sample = (i / period) % 2 ? volume : -volume;
-        SDL_QueueAudio(device, &sample, sizeof(sample));
+    SDL_AudioSpec want = {
+        .freq = 44100,
+        .format = AUDIO_S8,
+        .channels = 1,
+        .samples = 4096,
+    };
+
+    device = SDL_OpenAudioDevice(NULL, 0, &want, &spec, 0);
+    if ( device == 0 ) {
+        fprintf(stderr, "error: failed to open audio: %s\n", SDL_GetError());
     }
+
+    SDL_PauseAudioDevice(device, 0);
+    atexit(DOS_QuitSound);
 }
 
 
-// queue a sound and play it
+void DOS_SetVolume(unsigned value)
+{
+    if ( value > 15 || value <= 0 ) {
+        fprintf(stderr, "bad volume, expected value in range 1-15\n");
+        return;
+    }
+
+    volume = value;
+}
+
 void DOS_Sound(unsigned frequency, unsigned milliseconds)
 {
     SDL_ClearQueuedAudio(device);
-    DOS_QueueSound(frequency, milliseconds);
-    PlayQueuedSound(NULL);
+    DOS_AddSound(frequency, milliseconds);
 }
 
-
-void DOS_StopSound()
+void DOS_StopSound(void)
 {
     SDL_ClearQueuedAudio(device);
-    SDL_PauseAudioDevice(device, SDL_TRUE);
 }
 
-
-void DOS_SoundAsync(unsigned frequency, unsigned milliseconds)
-{
-    DOS_QueueSound(frequency, milliseconds);
-    DOS_PlayQueuedSound();
-}
-
-
-// play whatever is in the buffer on another thread
-void DOS_PlayQueuedSound(void)
-{
-    SDL_Thread * thread;
-    thread = SDL_CreateThread(PlayQueuedSound, "play_thread", NULL);
-    if ( thread == NULL ) {
-        fprintf(stderr, "could not create play thread: %s\n", SDL_GetError());
-    }
-}
-
-void DOS_Beep()
+void DOS_Beep(void)
 {
     DOS_Sound(800, 200);
 }
 
-#define PLAY_DEBUG 0
 
-// FIXME: note length bug (l16 +)
-void DOS_Play(const char * string)
+// Play
+
+// L[1,2,4,8,16,32,64] default: 4
+// O[0...6] default: 4
+// T[32...255] default: 120
+
+// [A...G]([+,#,-][1,2,4,8,16,32,64][.])
+// N[0...84](.)
+// P[v]
+
+static void PlayError(const char * msg, int line_position)
 {
+    printf("Play syntax error: %s (position %d)\n.", msg, line_position);
+}
+
+#define PLAY_STRING_MAX 255
+
+void DOS_Play(const char * string, ...)
+{
+    if ( strlen(string) > PLAY_STRING_MAX ) {
+        printf("Play error: string too long (max %d)\n", PLAY_STRING_MAX);
+        return;
+    }
+
+    va_list args;
+    va_start(args, string);
+
+    char buffer[PLAY_STRING_MAX + 1] = { 0 };
+    vsnprintf(buffer, PLAY_STRING_MAX, string, args);
+    va_end(args);
+
     // default settings
     int bmp = 120;
     int oct = 4;
     int len = 4;
-    
+
+    // A-G
+    static const int note_offsets[7] = { 9, 11, 0, 2, 4, 5, 7 };
+
+    enum {
+        mode_staccato = 6,  // 6/8
+        mode_normal = 7,    // 7/8
+        mode_legato = 8     // 8/8
+    } mode = mode_normal;
+
     SDL_ClearQueuedAudio(device);
-    
+
     // queue up whatever's in the string:
 
-    const char * c = string;
-    while ( *c != '\0') {
-        char ch = toupper(*c); // case-insensitive
-        int offs = 0; // half-step + or - offset to note
-        
-        // check the following character for a '+' or '-'
-        if ( *(c + 1) != '\0' ) {
-            if ( *(c + 1) == '+' ) {
-                offs = +1;
-            } else if ( *(c + 1) == '-' ) {
-                offs = -1;
-            }
-        }
-        
-        int ms = NoteValueToMS(len, bmp);
-        
-        switch ( ch ) {
-            case '+': // handled above
-            case '-':
-                break;
-                
-            case 'C': QueueNote( 0 + offs, oct, ms); break;
-            case 'D': QueueNote( 2 + offs, oct, ms); break;
-            case 'E': QueueNote( 4 + offs, oct, ms); break;
-            case 'F': QueueNote( 5 + offs, oct, ms); break;
-            case 'G': QueueNote( 7 + offs, oct, ms); break;
-            case 'A': QueueNote( 9 + offs, oct, ms); break;
-            case 'B': QueueNote(11 + offs, oct, ms); break;
-                
-            case 'T': {
-                bmp = strtol(c + 1, NULL, 10);
-                if ( bmp == 0 ) {
-                    printf("DOS_Play syntax error at position %d\n.",
-                           (int)(c - string));
-                    return;
+    // TODO: could use a big clean up.
+    // TODO: handle tuplet handling
+    // TODO: nice if more articulate choice beyond s, n, and l - specify fraction?
+    const char * str = buffer;
+    while ( *str != '\0') {
+        char c = toupper(*str++);
+        switch ( c ) {
+            case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
+            case 'G': case 'N': case 'P':
+            {
+                // get note:
+                int note = 0;
+                switch ( c ) {
+                    case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
+                    case 'G':
+                        note = 1 + (oct) * 12 + note_offsets[c - 'A'];
+                        break;
+                    case 'P':
+                        note = 0;
+                        break;
+                    case 'N': {
+                        int number = (int)strtol(str, (char **)&str, 10);
+                        if ( number < 0 || number > 84 )
+                            return PlayError("bad note number", (int)(str - string));
+                        if ( number > 0 )
+                            note = number;
+                        break;
+                    }
+                    default:
+                        break;
                 }
-                #if PLAY_DEBUG
-                printf("set tempo to %d\n", bmp);
-                #endif
+
+                // adjust note per accidental:
+                if ( c >= 'A' && c <= 'G' ) {
+                    if ( *str == '+' || *str == '#' ) {
+                        if ( note < 84 )
+                            note++;
+                        str++;
+                    } else if ( *str == '-' ) {
+                        if ( note > 1 )
+                            note--;
+                        str++;
+                    }
+                }
+
+                int d = len;
+
+                // check if there's a note length following a note A-G, set d
+                if ( c != 'N' ) {
+                    int number = (int)strtol(str, (char **)&str, 10);
+                    
+                    // strtol got a number, but it was a bad one
+                    if ( number < 0 || number > 64 )
+                        return PlayError("bad note value", (int)(str - string));
+                    
+                    // strtol found a value number
+                    if ( number > 0 )
+                        d = number;
+                }
+
+                // TODO: this should only happen when after a note length
+                // count dots:
+                int dot_count = 0;
+                while ( *str == '.' ) {
+                    dot_count++;
+                    str++;
+                }
+
+                // adjust duration if there are dots:
+                float total_ms = (60.0f / (float)bmp) * 1000.0f * (4.0f / (float)d);
+                float prolongation = total_ms / 2.0f;
+                while ( dot_count-- ) {
+                    total_ms += prolongation;
+                    prolongation /= 2;
+                }
+
+                // calculate articulation silence:
+                int note_ms = total_ms * ((float)mode / 8.0f);
+                int silence_ms = total_ms * ((8.0f - (float)mode) / 8.0f);
+
+                // and finally, queue it
+                DOS_AddSound(NoteNumberToFrequency(note_num), note_ms);
+                DOS_AddSound(0, silence_ms);
                 break;
-            }
+            } // A-G, N, and P
+
+            case 'T':
+                bmp = (int)strtol(str, (char **)&str, 10);
+                if ( bmp == 0 )
+                    return PlayError("bad tempo", (int)(str - string));
+                break;
+
             case 'O':
-                oct = strtol(c + 1, NULL, 10);
-                if ( oct == 0 ) {
-                    printf("DOS_Play syntax error at position %d\n.",
-                           (int)(c - string));
-                    return;
-                }
-                #if PLAY_DEBUG
-                printf("set octave to %d\n", oct);
-                #endif
+                if ( *str < '0' || *str > '6' )
+                    return PlayError("bad octave", (int)(str - string));
+                oct = (int)strtol(str, (char **)&str, 10);
                 break;
+
+                // TODO: dots not handled
             case 'L':
-                len = strtol(c + 1, NULL, 10);
-                if ( len == 0 || !ValidNoteValue(len) ) {
-                    printf("TXT_PlayNotes: syntax error at position %d\n.",
-                           (int)(c - string));
-                    return;
-                }
-                #if PLAY_DEBUG
-                printf("set length to %d\n", len);
-                #endif
+                len = (int)strtol(str, (char **)&str, 10);
+                if ( len < 1 || len > 64 )
+                    return PlayError("bad length", (int)(str - string));
                 break;
+
             case '>':
-                oct = SetOctave(oct + 1);
-                #if PLAY_DEBUG
-                printf("increase octave\n");
-                #endif
+                if ( oct < 6 )
+                    oct++;
                 break;
+
             case '<':
-                oct = SetOctave(oct - 1);
+                if ( oct > 0 )
+                    oct--;
                 break;
-                #if PLAY_DEBUG
-                printf("decrease octave\n");
-                #endif
+
+            case 'M': {
+                char option = toupper(*str++);
+                switch ( option ) {
+                    case 'L': mode = mode_legato; break;
+                    case 'N': mode = mode_normal; break;
+                    case 'S': mode = mode_staccato; break;
+                    default:
+                        return PlayError("bad music option", (int)(str - string));
+                        break;
+                }
+                break;
+            }
             default:
                 break;
         }
-        
-        c++;
     }
-
-    DOS_PlayQueuedSound();
 }
-
-#undef PLAY_DEBUG

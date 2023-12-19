@@ -18,9 +18,8 @@ int HandelKey(SDL_Keycode key)
 
         case SDLK_s:
             for ( int i = 0; i < 20; i++ ) {
-                DOS_QueueSound(arc4random_uniform(400)+400, 100);
+                DOS_AddSound(arc4random_uniform(400)+400, 100);
             }
-            DOS_PlayQueuedSound();
             break;
         case SDLK_p:
             DOS_Play("t160 l16 cdefgfed l32 cdefgfed l4 c");
